@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatCourier - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-page">
+    <!-- Brand Header -->
+    <header class="page-header">
+      <div class="brand-wrap">
+        <div class="brand-logo-wrap">
+          <svg class="brand-logo" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <linearGradient id="hdr-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#a5b4fc"/>
+                <stop offset="100%" stop-color="#c084fc"/>
+              </linearGradient>
+            </defs>
+            <path d="M4 8C4 5.79 5.79 4 8 4H14C17.31 4 20 6.69 20 10C20 12.21 18.21 14 16 14H10C6.69 14 4 11.31 4 8Z" stroke="url(#hdr-grad)" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M20 16C20 18.21 18.21 20 16 20H10C6.69 20 4 17.31 4 14C4 11.79 5.79 10 8 10H14C17.31 10 20 12.69 20 16Z" stroke="url(#hdr-grad)" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="12" cy="12" r="2.2" fill="#ffffff"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">ChatCourier</h1>
+          <p class="brand-subtitle">Settings &amp; Connection Profiles</p>
+        </div>
+      </div>
+      <div class="version-tag">v1.1.0</div>
+    </header>
+
+    <!-- Section: Connection Profiles -->
+    <section class="settings-section">
+      <h2 class="section-title">Connection Profiles</h2>
+      <p class="section-desc">Each profile holds an API endpoint, model, and key. Switch between providers instantly.</p>
+
+      <!-- Profile List -->
+      <div id="profile-list" class="profile-list">
+        <!-- Dynamically populated -->
+      </div>
+
+      <button id="btn-add-profile" class="btn btn-secondary btn-sm" style="margin-top: 8px;">+ Add Profile</button>
+
+      <!-- Profile Editor (hidden by default) -->
+      <div id="profile-editor" class="profile-editor hidden">
+        <h3 id="editor-title" class="editor-title">Edit Profile</h3>
+        <input type="hidden" id="editor-profile-id">
+
+        <div class="form-group">
+          <label for="editor-name" class="form-label">Profile Name</label>
+          <input type="text" id="editor-name" class="text-input" placeholder="e.g. Groq — Fast">
+        </div>
+
+        <div class="form-group">
+          <label for="editor-endpoint" class="form-label">API Endpoint (OpenAI-Compatible)</label>
+          <input type="text" id="editor-endpoint" class="text-input" placeholder="https://api.groq.com/openai/v1">
+          <p class="form-hint">Must be an OpenAI-compatible /chat/completions endpoint. Works with Groq, OpenAI, OpenRouter, Together, Ollama, etc.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="editor-model" class="form-label">Model ID</label>
+          <input type="text" id="editor-model" class="text-input" placeholder="llama-3.3-70b-versatile">
+          <p class="form-hint">Enter the exact model ID string (e.g. llama-3.3-70b-versatile, gpt-4o, claude-3-opus-20240229).</p>
+        </div>
+
+        <div class="form-group">
+          <label for="editor-apikey" class="form-label">API Key</label>
+          <div class="input-with-button">
+            <input type="password" id="editor-apikey" class="text-input" placeholder="sk-... or gsk_..." autocomplete="off">
+            <button id="btn-toggle-key" class="btn btn-secondary btn-sm" title="Show/Hide">👁</button>
+          </div>
+        </div>
+
+        <div class="editor-actions">
+          <button id="btn-test-connection" class="btn btn-secondary">Test Connection</button>
+          <div id="test-status" class="test-status"></div>
+          <div class="editor-btn-group">
+            <button id="btn-cancel-edit" class="btn btn-secondary btn-sm">Cancel</button>
+            <button id="btn-save-profile" class="btn btn-primary btn-sm">Save Profile</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section: Advanced Settings (collapsible) -->
+    <details class="settings-section advanced-section">
+      <summary class="section-title clickable">
+        Advanced Settings
+        <span class="chevron">▶</span>
+      </summary>
+
+      <div class="advanced-body">
+        <div class="form-group">
+          <label for="temperature" class="form-label">Temperature: <span id="temp-val">0.2</span></label>
+          <input type="range" id="temperature" min="0.0" max="1.0" step="0.05" value="0.2" class="range-slider">
+          <p class="form-hint">Lower values (0.1–0.2) produce deterministic, precise context digests.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="custom-system-prompt" class="form-label">
+            System Prompt Template
+            <button id="btn-reset-prompt" class="btn btn-secondary btn-xs">Reset to Default</button>
+          </label>
+          <textarea id="custom-system-prompt" class="textarea-input" rows="10"></textarea>
+          <p class="form-hint">Governs the 4-section digest structure (Goal, Decisions, Artifacts, Next Steps).</p>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-title">Auto-Copy Digest to Clipboard</div>
+            <div class="toggle-desc">Automatically copies the digest when summarization completes.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-autocopy" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-title">Show Desktop Notifications</div>
+            <div class="toggle-desc">System notification when extraction or handoff finishes.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-notifications" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-title">Enable In-Tab Floating Button (FAB)</div>
+            <div class="toggle-desc">Show the floating orb on supported LLM pages.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-fab" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="shortcut-box">
+          <div class="shortcut-label">In-Tab Shortcut</div>
+          <div class="shortcut-key">Alt + Shift + C</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Save Footer -->
+    <div class="action-footer">
+      <span id="save-status" class="save-status">All changes saved automatically</span>
+      <button id="btn-save-all" class="btn btn-primary btn-sm">Save Settings</button>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
