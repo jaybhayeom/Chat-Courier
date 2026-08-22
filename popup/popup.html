@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatCourier - LLM Context Handoff</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon-wrap">
+          <svg class="brand-icon" viewBox="0 0 24 24">
+            <defs>
+              <linearGradient id="pop-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#a5b4fc"/>
+                <stop offset="100%" stop-color="#c084fc"/>
+              </linearGradient>
+            </defs>
+            <path d="M4 8C4 5.79 5.79 4 8 4H14C17.31 4 20 6.69 20 10C20 12.21 18.21 14 16 14H10C6.69 14 4 11.31 4 8Z" stroke="url(#pop-grad)" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M20 16C20 18.21 18.21 20 16 20H10C6.69 20 4 17.31 4 14C4 11.79 5.79 10 8 10H14C17.31 10 20 12.69 20 16Z" stroke="url(#pop-grad)" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="12" cy="12" r="2" fill="#ffffff"/>
+          </svg>
+        </div>
+        <span class="brand-title">ChatCourier</span>
+      </div>
+      <div class="header-actions">
+        <div id="status-indicator" class="status-indicator" title="Checking API Status">
+          <span class="status-dot"></span>
+          <span id="status-text" class="status-text">Checking...</span>
+        </div>
+        <button id="btn-open-options" class="icon-btn" title="Open Settings">
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Platform & Context Detection Card -->
+    <div class="card platform-card" id="main-platform-card">
+      <div class="card-row">
+        <div class="platform-meta-wrap">
+          <div class="platform-text-wrap">
+            <span class="label">Active Platform</span>
+            <span id="detected-platform-badge" class="platform-badge">Detecting...</span>
+          </div>
+        </div>
+        <div class="active-profile-tag" id="active-profile-tag" title="Active connection profile">
+          <span id="active-profile-name">—</span>
+        </div>
+      </div>
+
+      <div class="stats-row" id="stats-container">
+        <div class="stat-box">
+          <span class="stat-val" id="stat-messages">--</span>
+          <span class="stat-lbl">Messages</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-val" id="stat-words">--</span>
+          <span class="stat-lbl">Words</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-val" id="stat-tokens">--</span>
+          <span class="stat-lbl">Tokens</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="actions-group">
+      <button id="btn-summarize" class="btn btn-primary">
+        <span class="btn-icon-wrap" id="btn-summarize-icon">
+          <svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </span>
+        <span id="btn-summarize-label">Summarize for Handoff</span>
+      </button>
+
+      <div class="dual-btn-row">
+        <button id="btn-extract-raw" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          Copy Raw
+        </button>
+        <button id="btn-download" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          Download
+        </button>
+      </div>
+    </div>
+
+    <!-- Skeleton Loading Animation State -->
+    <div id="skeleton-loader" class="skeleton-wrap hidden">
+      <div class="skeleton-line full"></div>
+      <div class="skeleton-line two-thirds"></div>
+      <div class="skeleton-line full"></div>
+      <div class="skeleton-line half"></div>
+    </div>
+
+    <!-- Preview Accordion & Output -->
+    <div id="preview-accordion" class="preview-section hidden">
+      <div class="preview-header" id="preview-toggle">
+        <span class="preview-title">Handoff Digest Preview</span>
+        <span id="preview-chevron" class="chevron">▼</span>
+      </div>
+      <div id="preview-body" class="preview-body">
+        <pre id="preview-content"></pre>
+      </div>
+    </div>
+
+    <!-- Toast / Notification Bar -->
+    <div id="feedback-bar" class="feedback-bar">
+      <span id="feedback-text">Ready</span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
