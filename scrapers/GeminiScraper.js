@@ -10,22 +10,23 @@ class GeminiScraper extends BaseScraper {
 
   /**
    * Scrapes the active Google Gemini chat session
+   * @param {boolean} fastMode If true, skips virtualized scroll sweep
    */
-  async scrape() {
+  async scrape(fastMode = false) {
     const title = this.extractTitle();
     const url = window.location.href;
     const extractedAt = new Date().toISOString();
 
     const elements = await this.collectVirtualizedNodes(
       'main, infinite-scroller, div[class*="conversation-container"], div[class*="chat-history"]',
-      'user-query, model-response, div[class*="user-query-container"], div[class*="model-response-container"], chat-turn, conversation-turn'
+      'user-query, model-response, div[class*="user-query-container"], div[class*="model-response-container"], chat-turn, conversation-turn',
+      !fastMode
     );
 
     const messages = [];
     const elementsToProcess = elements.length > 0 ? elements : Array.from(document.querySelectorAll('user-query, model-response, div[class*="user-query-container"], div[class*="model-response-container"], message-content'));
 
     elementsToProcess.forEach((el) => {
-      // Determine if user or model
       const tagName = el.tagName.toLowerCase();
       let sender = 'assistant';
 
@@ -43,11 +44,8 @@ class GeminiScraper extends BaseScraper {
         }
       }
 
-      // Look for message content container
       let contentContainer = el.querySelector('message-content, expandable-text, .markdown, .response-text, .query-text') || el;
-
       const clone = contentContainer.cloneNode(true);
-      // Remove UI buttons (copy, thumbs up/down, share, modify response)
       const uiButtons = clone.querySelectorAll('button, mat-icon, [role="button"], [class*="action-buttons"], [class*="citation-item"]');
       uiButtons.forEach(b => b.remove());
 
@@ -65,7 +63,6 @@ class GeminiScraper extends BaseScraper {
       }
     });
 
-    // Fallback if no custom elements found
     if (messages.length === 0) {
       const fallbackContainers = document.querySelectorAll('.markdown, div[class*="query-content"], div[class*="response-content"]');
       fallbackContainers.forEach((el, i) => {
@@ -81,6 +78,7 @@ class GeminiScraper extends BaseScraper {
     }
 
     const stats = this.calculateStats(messages);
+    const completeness = this.checkCompleteness(messages);
     const rawTranscript = this.formatAsMarkdown({ platform: this.platformName, title, url, extractedAt, messages, stats });
 
     return {
@@ -90,8 +88,16 @@ class GeminiScraper extends BaseScraper {
       extractedAt,
       messages,
       rawTranscript,
-      stats
+      stats,
+      completeness
     };
+  }
+
+  /**
+   * Locates Gemini's active composer element
+   */
+  findComposerElement() {
+    return document.querySelector('.rich-textarea div[contenteditable="true"], div[contenteditable="true"][aria-label*="prompt"], textarea');
   }
 
   /**

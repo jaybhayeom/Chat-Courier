@@ -1,6 +1,6 @@
 /**
  * ChatCourier - BaseScraper.js
- * Universal Base Scraper & DOM Normalization Engine for LLM Web Interfaces
+ * Universal Base Scraper, Virtualized DOM Sweeper & Text Normalization Engine
  */
 
 class BaseScraper {
@@ -10,10 +10,6 @@ class BaseScraper {
 
   /**
    * Cleans and normalizes text extracted from DOM nodes
-   * - Strips invisible / zero-width characters
-   * - Normalizes unicode line breaks and whitespace
-   * - Preserves markdown code fences and tabbed indentation
-   * - Decodes common HTML entities
    */
   cleanText(rawText) {
     if (!rawText || typeof rawText !== 'string') return '';
@@ -26,7 +22,7 @@ class BaseScraper {
       .replace(/\r/g, '\n')
       // Normalize non-breaking spaces
       .replace(/\u00A0/g, ' ')
-      // Replace tabs outside code fences if needed or preserve
+      // Replace tabs outside code fences if needed
       .replace(/\t/g, '    ');
 
     // Decode HTML entities
@@ -41,10 +37,9 @@ class BaseScraper {
     // Clean trailing whitespace on each line
     text = text.replace(/[ \t]+\n/g, '\n');
 
-    // Normalize multiple excessive blank lines (> 2 consecutive newlines)
+    // Normalize multiple excessive blank lines
     text = text.replace(/\n{3,}/g, '\n\n');
 
-    // Trim outer whitespace
     return text.trim();
   }
 
@@ -69,20 +64,13 @@ class BaseScraper {
 
   /**
    * Collects elements from DOM and virtualized containers.
-   * Prioritizes fast direct DOM query without disturbing the user's viewport.
+   * Defaults to forceScrollSweep = true to guarantee complete context extraction on virtualized threads.
    * 
    * @param {string|Element} scrollContainerSelector
    * @param {string} itemSelector
-   * @param {boolean} forceScrollSweep
+   * @param {boolean} forceScrollSweep (default: true)
    */
-  async collectVirtualizedNodes(scrollContainerSelector, itemSelector, forceScrollSweep = false) {
-    const directItems = Array.from(document.querySelectorAll(itemSelector));
-    
-    // Fast path: If items exist and no sweep forced, return immediately
-    if (directItems.length > 0 && !forceScrollSweep) {
-      return directItems;
-    }
-
+  async collectVirtualizedNodes(scrollContainerSelector, itemSelector, forceScrollSweep = true) {
     let container = null;
     if (typeof scrollContainerSelector === 'string') {
       container = document.querySelector(scrollContainerSelector);
@@ -109,14 +97,14 @@ class BaseScraper {
 
     collectVisible();
 
-    // If still 0 items or explicitly forced sweep, do a fast, gentle scroll
+    // Perform scroll sweep if enabled and container is scrollable
     if (forceScrollSweep && scrollTarget.scrollHeight > scrollTarget.clientHeight) {
       const totalHeight = scrollTarget.scrollHeight;
       const clientHeight = scrollTarget.clientHeight || window.innerHeight;
-      const step = Math.max(400, Math.floor(clientHeight * 0.8));
+      const step = Math.max(350, Math.floor(clientHeight * 0.75));
       let currentPos = 0;
       let passes = 0;
-      const maxPasses = 10;
+      const maxPasses = 25; // Supports very long chat transcripts
 
       while (currentPos < totalHeight && passes < maxPasses) {
         scrollTarget.scrollTop = currentPos;
@@ -126,11 +114,35 @@ class BaseScraper {
         passes++;
       }
 
+      // Final pass at bottom
+      scrollTarget.scrollTop = totalHeight;
+      await this.sleep(60);
+      collectVisible();
+
       // Restore scroll position
       scrollTarget.scrollTop = initialScrollTop;
     }
 
     return Array.from(collectedMap.values());
+  }
+
+  /**
+   * Completeness sanity check: checks if extracted turns seem low relative to page height
+   */
+  checkCompleteness(messages, scrollTarget) {
+    const target = scrollTarget || document.scrollingElement || document.documentElement;
+    const scrollHeight = target ? target.scrollHeight : 0;
+    const viewportHeight = window.innerHeight || 800;
+
+    // If page is significantly scrollable (> 4 viewports) but extracted fewer than 3 turns
+    if (scrollHeight > viewportHeight * 4 && messages.length < 3) {
+      return {
+        isComplete: false,
+        warning: `Detected a long conversation (${Math.round(scrollHeight / viewportHeight)} screens tall), but only ${messages.length} messages were mounted in the DOM. Try scrolling through the chat once if older messages are missing.`
+      };
+    }
+
+    return { isComplete: true, warning: null };
   }
 
   /**
@@ -142,12 +154,10 @@ class BaseScraper {
     const blocks = [];
 
     codeElements.forEach((el) => {
-      // Avoid duplicate captures of nested <pre><code>
       if (el.tagName.toLowerCase() === 'code' && el.parentElement && el.parentElement.tagName.toLowerCase() === 'pre') {
         return;
       }
 
-      // Try to determine language from class or header
       let lang = 'plaintext';
       const classAttr = el.getAttribute('class') || (el.querySelector('code') ? el.querySelector('code').getAttribute('class') : '') || '';
       const match = classAttr.match(/language-([a-zA-Z0-9_-]+)/i) || classAttr.match(/lang-([a-zA-Z0-9_-]+)/i);
@@ -191,7 +201,6 @@ class BaseScraper {
       totalChars += (msg.content ? msg.content.length : 0);
     });
 
-    // Approximate token count: ~4 chars / token or 0.75 words / token
     const approxTokenCount = Math.round((totalChars / 4) * 0.6 + (totalWords / 0.75) * 0.4);
 
     return {
@@ -219,7 +228,7 @@ class BaseScraper {
     md += `---\n\n`;
 
     messages.forEach((msg, idx) => {
-      const senderLabel = msg.sender === 'user' ? '👤 **User**' : '🤖 **Assistant**';
+      const senderLabel = msg.sender === 'user' ? '**User**' : '**Assistant**';
       const timestamp = msg.timestamp ? ` *(${msg.timestamp})*` : '';
       md += `### ${senderLabel}${timestamp}\n\n`;
       md += `${msg.content}\n\n`;
@@ -239,7 +248,7 @@ class BaseScraper {
   }
 
   /**
-   * Formats extracted session for Groq LLM context condensation
+   * Formats extracted session for LLM context condensation
    */
   formatForGroqDigest(session) {
     const header = `[TRANSCRIPT METADATA]\nPlatform: ${session.platform}\nTitle: ${session.title}\nMessage Count: ${session.stats?.messageCount || session.messages?.length || 0}\n\n[CONVERSATION TURNS]\n`;
@@ -248,6 +257,48 @@ class BaseScraper {
       return `--- TURN ${i + 1} (${role}) ---\n${m.content}\n`;
     }).join('\n');
     return header + turns;
+  }
+
+  /**
+   * Locates the active platform's prompt input element (textarea or contenteditable div)
+   * Subclasses should override with platform-specific selectors.
+   * @returns {HTMLElement|null}
+   */
+  findComposerElement() {
+    return document.querySelector('textarea, div[contenteditable="true"]');
+  }
+
+  /**
+   * Retrieves text currently sitting in the active composer
+   */
+  getComposerText() {
+    const composer = this.findComposerElement();
+    if (!composer) return '';
+    if (composer.tagName.toLowerCase() === 'textarea' || composer.tagName.toLowerCase() === 'input') {
+      return composer.value || '';
+    }
+    return composer.innerText || composer.textContent || '';
+  }
+
+  /**
+   * Inserts text into the active composer and fires input events
+   */
+  setComposerText(text) {
+    const composer = this.findComposerElement();
+    if (!composer) return false;
+
+    composer.focus();
+
+    if (composer.tagName.toLowerCase() === 'textarea' || composer.tagName.toLowerCase() === 'input') {
+      composer.value = text;
+      composer.dispatchEvent(new Event('input', { bubbles: true }));
+      composer.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      // Contenteditable div
+      composer.textContent = text;
+      composer.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    return true;
   }
 
   /**
@@ -267,12 +318,11 @@ class BaseScraper {
   /**
    * Abstract scrape method - must be implemented by subclasses
    */
-  async scrape() {
+  async scrape(fastMode = false) {
     throw new Error(`scrape() must be implemented by ${this.constructor.name}`);
   }
 }
 
-// Attach to window / global scope for Chrome extension content script injection
 if (typeof window !== 'undefined') {
   window.BaseScraper = BaseScraper;
 }

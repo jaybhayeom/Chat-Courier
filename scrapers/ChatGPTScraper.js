@@ -10,23 +10,23 @@ class ChatGPTScraper extends BaseScraper {
 
   /**
    * Scrapes the active ChatGPT chat session
+   * @param {boolean} fastMode If true, skips virtualized scroll sweep
    */
-  async scrape() {
+  async scrape(fastMode = false) {
     const title = this.extractTitle();
     const url = window.location.href;
     const extractedAt = new Date().toISOString();
 
-    // Fast query for ChatGPT conversation turn elements
     const articles = await this.collectVirtualizedNodes(
       'main div[class*="react-scroll-to-bottom"], main div[class*="overflow-y-auto"], div[role="presentation"]',
-      'article, div[data-testid^="conversation-turn-"], div[class*="agent-turn"], div[class*="user-turn"]'
+      'article, div[data-testid^="conversation-turn-"], div[class*="agent-turn"], div[class*="user-turn"]',
+      !fastMode
     );
 
     const messages = [];
     const targetElements = articles.length > 0 ? articles : Array.from(document.querySelectorAll('article, div[data-testid^="conversation-turn-"]'));
 
     targetElements.forEach((turnEl) => {
-      // Determine author role
       let sender = 'assistant';
       const roleAttr = turnEl.querySelector('[data-message-author-role]')?.getAttribute('data-message-author-role') ||
                        turnEl.getAttribute('data-message-author-role');
@@ -47,10 +47,8 @@ class ChatGPTScraper extends BaseScraper {
         }
       }
 
-      // Extract text content
       let contentEl = turnEl.querySelector('.markdown, .prose, div[class*="text-message"], div[class*="whitespace-pre-wrap"]') || turnEl;
 
-      // Clone element to clean out UI buttons
       const clone = contentEl.cloneNode(true);
       const buttonsAndTools = clone.querySelectorAll('button, svg, [role="button"], [class*="gizmo-bot-avatar"], [class*="text-xs"], .sr-only, [data-testid*="copy"]');
       buttonsAndTools.forEach(b => b.remove());
@@ -88,6 +86,7 @@ class ChatGPTScraper extends BaseScraper {
     }
 
     const stats = this.calculateStats(messages);
+    const completeness = this.checkCompleteness(messages);
     const rawTranscript = this.formatAsMarkdown({ platform: this.platformName, title, url, extractedAt, messages, stats });
 
     return {
@@ -97,8 +96,16 @@ class ChatGPTScraper extends BaseScraper {
       extractedAt,
       messages,
       rawTranscript,
-      stats
+      stats,
+      completeness
     };
+  }
+
+  /**
+   * Locates the active ChatGPT composer textarea
+   */
+  findComposerElement() {
+    return document.querySelector('#prompt-textarea, textarea[data-id="root"], div[contenteditable="true"][id="prompt-textarea"], textarea');
   }
 
   /**

@@ -10,22 +10,23 @@ class ClaudeScraper extends BaseScraper {
 
   /**
    * Scrapes the active Claude AI chat session
+   * @param {boolean} fastMode If true, skips virtualized scroll sweep
    */
-  async scrape() {
+  async scrape(fastMode = false) {
     const title = this.extractTitle();
     const url = window.location.href;
     const extractedAt = new Date().toISOString();
 
     const chatTurns = await this.collectVirtualizedNodes(
       'main div[class*="overflow-y-auto"], div[class*="flex-1 overflow-y-auto"], div[data-testid="chat-message-list"]',
-      'div[data-testid="user-message"], div[data-testid="assistant-message"], div[class*="font-claude-message"], div[class*="font-user-message"]'
+      'div[data-testid="user-message"], div[data-testid="assistant-message"], div[class*="font-claude-message"], div[class*="font-user-message"]',
+      !fastMode
     );
 
     const messages = [];
     const elementsToProcess = chatTurns.length > 0 ? chatTurns : Array.from(document.querySelectorAll('[data-testid="user-message"], [data-testid="assistant-message"], .font-claude-message, .font-user-message'));
 
     elementsToProcess.forEach((el) => {
-      // Determine if user or assistant
       let sender = 'assistant';
       const isUser = el.matches('[data-testid="user-message"], .font-user-message, [class*="font-user-message"]') ||
                      el.getAttribute('data-testid') === 'user-message';
@@ -42,7 +43,7 @@ class ClaudeScraper extends BaseScraper {
         sender = hasHumanIcon ? 'user' : 'assistant';
       }
 
-      // Look for Claude Artifacts within or alongside this turn
+      // Look for Claude Artifacts
       let artifactContent = '';
       const artifactBlocks = el.querySelectorAll('[data-testid="artifact-block"], div[class*="ArtifactBlock"], div[class*="artifact-container"]');
       artifactBlocks.forEach(art => {
@@ -53,11 +54,9 @@ class ClaudeScraper extends BaseScraper {
         }
       });
 
-      // Extract prose / message content
       let contentContainer = el.querySelector('.prose, div[class*="grid-cols-1"], div[class*="whitespace-pre-wrap"]') || el;
       const clone = contentContainer.cloneNode(true);
 
-      // Clean out copy buttons, edit buttons, feedback controls
       const uiControls = clone.querySelectorAll('button, svg, [role="button"], [class*="text-xs"], [data-testid*="feedback"], [data-testid*="copy"]');
       uiControls.forEach(c => c.remove());
 
@@ -79,7 +78,6 @@ class ClaudeScraper extends BaseScraper {
       }
     });
 
-    // Fallback if messages array is empty
     if (messages.length === 0) {
       const genericParagraphs = document.querySelectorAll('.prose, div[class*="font-claude"], div[class*="font-user"]');
       genericParagraphs.forEach((p, i) => {
@@ -95,6 +93,7 @@ class ClaudeScraper extends BaseScraper {
     }
 
     const stats = this.calculateStats(messages);
+    const completeness = this.checkCompleteness(messages);
     const rawTranscript = this.formatAsMarkdown({ platform: this.platformName, title, url, extractedAt, messages, stats });
 
     return {
@@ -104,8 +103,16 @@ class ClaudeScraper extends BaseScraper {
       extractedAt,
       messages,
       rawTranscript,
-      stats
+      stats,
+      completeness
     };
+  }
+
+  /**
+   * Locates Claude's active composer element
+   */
+  findComposerElement() {
+    return document.querySelector('div[contenteditable="true"][translate="no"], div[contenteditable="true"], textarea');
   }
 
   /**

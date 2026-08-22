@@ -10,15 +10,17 @@ class PerplexityScraper extends BaseScraper {
 
   /**
    * Scrapes the active Perplexity AI search / thread session
+   * @param {boolean} fastMode If true, skips virtualized scroll sweep
    */
-  async scrape() {
+  async scrape(fastMode = false) {
     const title = this.extractTitle();
     const url = window.location.href;
     const extractedAt = new Date().toISOString();
 
     const threadItems = await this.collectVirtualizedNodes(
       'main, div[class*="scroll-container"], div[class*="thread-container"]',
-      'div[class*="group/query"], div[class*="prose"], div[data-testid="query-block"], div[data-testid="answer-block"], div[class*="thread-item"]'
+      'div[class*="group/query"], div[class*="prose"], div[data-testid="query-block"], div[data-testid="answer-block"], div[class*="thread-item"]',
+      !fastMode
     );
 
     const messages = [];
@@ -41,7 +43,6 @@ class PerplexityScraper extends BaseScraper {
         sender = 'assistant';
       }
 
-      // Collect sources/citations if assistant block
       let citationText = '';
       if (sender === 'assistant') {
         const citationLinks = el.querySelectorAll('a[class*="citation"], [data-testid="citation"], [class*="source"]');
@@ -60,7 +61,6 @@ class PerplexityScraper extends BaseScraper {
       }
 
       const clone = el.cloneNode(true);
-      // Remove copy, share, rewrite buttons
       const uiControls = clone.querySelectorAll('button, svg, [role="button"], [class*="action-bar"], [class*="citation"]');
       uiControls.forEach(c => c.remove());
 
@@ -82,7 +82,6 @@ class PerplexityScraper extends BaseScraper {
       }
     });
 
-    // Fallback if empty
     if (messages.length === 0) {
       const allProse = document.querySelectorAll('.prose, [class*="font-display"]');
       allProse.forEach((p, i) => {
@@ -98,6 +97,7 @@ class PerplexityScraper extends BaseScraper {
     }
 
     const stats = this.calculateStats(messages);
+    const completeness = this.checkCompleteness(messages);
     const rawTranscript = this.formatAsMarkdown({ platform: this.platformName, title, url, extractedAt, messages, stats });
 
     return {
@@ -107,8 +107,16 @@ class PerplexityScraper extends BaseScraper {
       extractedAt,
       messages,
       rawTranscript,
-      stats
+      stats,
+      completeness
     };
+  }
+
+  /**
+   * Locates Perplexity's active composer element
+   */
+  findComposerElement() {
+    return document.querySelector('textarea[placeholder*="Ask"], textarea[placeholder*="Follow-up"], textarea');
   }
 
   /**

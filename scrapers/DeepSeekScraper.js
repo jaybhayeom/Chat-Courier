@@ -10,15 +10,17 @@ class DeepSeekScraper extends BaseScraper {
 
   /**
    * Scrapes the active DeepSeek AI chat session
+   * @param {boolean} fastMode If true, skips virtualized scroll sweep
    */
-  async scrape() {
+  async scrape(fastMode = false) {
     const title = this.extractTitle();
     const url = window.location.href;
     const extractedAt = new Date().toISOString();
 
     const chatNodes = await this.collectVirtualizedNodes(
       'main, div[class*="chat-container"], div[class*="chat-session"], div[class*="virtualized-list"]',
-      'div[class*="chat-message"], div[class*="message-item"], div[class*="chat-turn"], div[class*="ds-message"]'
+      'div[class*="chat-message"], div[class*="message-item"], div[class*="chat-turn"], div[class*="ds-message"]',
+      !fastMode
     );
 
     const messages = [];
@@ -52,11 +54,9 @@ class DeepSeekScraper extends BaseScraper {
         }
       }
 
-      // Extract markdown / prose text
       const contentEl = el.querySelector('div[class*="ds-markdown"], div[class*="markdown"], div[class*="content"], div[class*="message-content"]') || el;
       const clone = contentEl.cloneNode(true);
 
-      // Clean out UI action buttons (copy, retry, edit, thumbs)
       const buttons = clone.querySelectorAll('button, svg, [role="button"], [class*="action-bar"], [class*="feedback"], [class*="ds-icon-button"], div[class*="ds-think"]');
       buttons.forEach(b => b.remove());
 
@@ -78,7 +78,6 @@ class DeepSeekScraper extends BaseScraper {
       }
     });
 
-    // Fallback if no structured turns were found
     if (messages.length === 0) {
       const genericParagraphs = document.querySelectorAll('div[class*="ds-markdown"], div[class*="markdown-body"]');
       genericParagraphs.forEach((p, i) => {
@@ -94,6 +93,7 @@ class DeepSeekScraper extends BaseScraper {
     }
 
     const stats = this.calculateStats(messages);
+    const completeness = this.checkCompleteness(messages);
     const rawTranscript = this.formatAsMarkdown({ platform: this.platformName, title, url, extractedAt, messages, stats });
 
     return {
@@ -103,8 +103,16 @@ class DeepSeekScraper extends BaseScraper {
       extractedAt,
       messages,
       rawTranscript,
-      stats
+      stats,
+      completeness
     };
+  }
+
+  /**
+   * Locates DeepSeek's active composer element
+   */
+  findComposerElement() {
+    return document.querySelector('textarea#chat-input, textarea[placeholder*="DeepSeek"], textarea');
   }
 
   /**
