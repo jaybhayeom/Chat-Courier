@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // App State
   let config = null;
   let activeTabId = null;
+  let activeTabUrl = '';
   let activePlatform = 'generic';
   let activeSessionData = null;
   let activeDigest = null;
@@ -259,7 +260,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ─── Script Injection Fallback ───
-  async function ensureContentScriptInjected(tabId) {
+  function isInjectableUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    return url.startsWith('http://') || url.startsWith('https://');
+  }
+
+  async function ensureContentScriptInjected(tabId, url) {
+    if (!isInjectableUrl(url)) return false;
     try {
       if (chrome.scripting && chrome.scripting.executeScript) {
         await chrome.scripting.insertCSS({ target: { tabId }, files: ['content.css'] }).catch(() => {});
@@ -278,30 +285,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         return true;
       }
     } catch (e) {
-      console.warn('[ChatCourier] Scripting injection error:', e);
+      // Intentionally calm — expected for restricted frames
     }
     return false;
   }
 
-  function querySessionFromTab(tabId) {
+  function querySessionFromTab(tabId, url) {
+    if (!isInjectableUrl(url)) return Promise.resolve(null);
     const fastMode = Boolean(config?.settings?.fastMode);
     return new Promise((resolve) => {
-      chrome.tabs.sendMessage(tabId, { action: 'EXTRACT_SESSION_REQUEST', payload: { fastMode } }, async (response) => {
-        if (chrome.runtime.lastError || !response || !response.success) {
-          const injected = await ensureContentScriptInjected(tabId);
-          if (injected) {
-            setTimeout(() => {
-              chrome.tabs.sendMessage(tabId, { action: 'EXTRACT_SESSION_REQUEST', payload: { fastMode } }, (retryRes) => {
-                resolve(retryRes?.success ? retryRes : null);
-              });
-            }, 200);
+      try {
+        chrome.tabs.sendMessage(tabId, { action: 'EXTRACT_SESSION_REQUEST', payload: { fastMode } }, async (response) => {
+          const err = chrome.runtime.lastError;
+          if (err || !response || !response.success) {
+            const injected = await ensureContentScriptInjected(tabId, url);
+            if (injected) {
+              setTimeout(() => {
+                try {
+                  chrome.tabs.sendMessage(tabId, { action: 'EXTRACT_SESSION_REQUEST', payload: { fastMode } }, (retryRes) => {
+                    const retryErr = chrome.runtime.lastError;
+                    resolve(retryRes?.success ? retryRes : null);
+                  });
+                } catch (_) {
+                  resolve(null);
+                }
+              }, 250);
+            } else {
+              resolve(null);
+            }
           } else {
-            resolve(null);
+            resolve(response);
           }
-        } else {
-          resolve(response);
-        }
-      });
+        });
+      } catch (_) {
+        resolve(null);
+      }
     });
   }
 
@@ -313,8 +331,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     activeTabId = tab.id;
+    activeTabUrl = tab.url || '';
 
-    const url = tab.url || '';
+    const url = activeTabUrl;
     if (url.includes('chatgpt.com') || url.includes('chat.openai.com')) {
       activePlatform = 'chatgpt';
       detectedPlatformBadge.textContent = 'ChatGPT';
@@ -336,7 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const response = await querySessionFromTab(activeTabId);
+      const response = await querySessionFromTab(activeTabId, activeTabUrl);
       if (response && response.success) {
         activeSessionData = response.session;
         updateStatsDisplay(activeSessionData.stats);
@@ -378,7 +397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       let transcriptText = activeSessionData ? activeSessionData.rawTranscript : '';
       if (!transcriptText && activeTabId) {
-        const extractRes = await querySessionFromTab(activeTabId);
+        const extractRes = await querySessionFromTab(activeTabId, activeTabUrl);
         if (extractRes && extractRes.success) {
           activeSessionData = extractRes.session;
           transcriptText = activeSessionData.rawTranscript;
@@ -445,12 +464,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   async function prefillRewriterInput() {
-    if (activeTabId && !rewriterInput.value) {
-      chrome.tabs.sendMessage(activeTabId, { action: 'GET_COMPOSER_TEXT' }, (res) => {
-        if (res && res.text && res.text.trim().length > 0) {
-          rewriterInput.value = res.text.trim();
-        }
-      });
+    if (activeTabId && isInjectableUrl(activeTabUrl) && !rewriterInput.value) {
+      try {
+        chrome.tabs.sendMessage(activeTabId, { action: 'GET_COMPOSER_TEXT' }, (res) => {
+          const err = chrome.runtime.lastError;
+          if (!err && res && res.text && res.text.trim().length > 0) {
+            rewriterInput.value = res.text.trim();
+          }
+        });
+      } catch (_) {}
     }
   }
 
@@ -521,7 +543,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnDownload.addEventListener('click', async () => {
     try {
       if (!activeSessionData && activeTabId) {
-        const res = await querySessionFromTab(activeTabId);
+        const res = await querySessionFromTab(activeTabId, activeTabUrl);
         if (res && res.success) activeSessionData = res.session;
       }
       const text = activeDigest || activeSessionData?.rawTranscript;
@@ -540,7 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnPreview.addEventListener('click', async () => {
     switchView('main');
     if (!activeSessionData && activeTabId) {
-      const res = await querySessionFromTab(activeTabId);
+      const res = await querySessionFromTab(activeTabId, activeTabUrl);
       if (res && res.success) activeSessionData = res.session;
     }
     const text = activeDigest || activeSessionData?.rawTranscript;

@@ -422,6 +422,81 @@ async function appendClipboardHistory(item) {
 }
 
 /**
+ * Unified template execution engine
+ */
+async function executeTemplateRun(payload) {
+  const config = await getStorageData();
+  const settings = { ...DEFAULT_CONFIG.settings, ...(config.settings || {}) };
+  const activeProfile = resolveActiveProfile(config);
+
+  const {
+    templateId = 'digest',
+    userContent = '',
+    extra = {}
+  } = payload || {};
+
+  if (!userContent || userContent.trim().length === 0) {
+    throw new Error('No content provided for processing.');
+  }
+
+  // 1. Resolve base template
+  let systemPrompt = resolveTemplatePrompt(config.templates, templateId);
+
+  // 2. Chain Thinking Mode depth template if enabled or requested
+  const thinkingEnabled = extra.thinkingDepth !== undefined ? Boolean(extra.thinkingDepth) : settings.thinkingModeEnabled;
+  if (thinkingEnabled) {
+    const depth = extra.thinkingDepth || settings.thinkingModeDepth || 'standard';
+    const depthTemplateId = `thinking_${depth}`;
+    const thinkingPrompt = resolveTemplatePrompt(config.templates, depthTemplateId);
+    if (thinkingPrompt) {
+      systemPrompt = `${thinkingPrompt}\n\n${systemPrompt}`;
+    }
+  }
+
+  // 3. Chain Persona instruction block if active or specified
+  const personaId = extra.personaId !== undefined ? extra.personaId : config.activePersonaId;
+  if (personaId) {
+    const personas = config.personas || DEFAULT_PERSONAS;
+    const persona = personas.find(p => p.id === personaId);
+    if (persona && persona.instructionBlock) {
+      systemPrompt = `[Active Persona: ${persona.name}]\n${persona.instructionBlock}\n\n${systemPrompt}`;
+    }
+  }
+
+  // 4. Chain Auto-Suggested Next Steps if enabled and template is digest
+  const autoSuggestEnabled = extra.autoSuggest !== undefined ? Boolean(extra.autoSuggest) : settings.autoSuggestEnabled;
+  if (autoSuggestEnabled && templateId === 'digest') {
+    const autoSuggestPrompt = resolveTemplatePrompt(config.templates, 'auto_suggest');
+    if (autoSuggestPrompt) {
+      systemPrompt = `${systemPrompt}\n\n${autoSuggestPrompt}`;
+    }
+  }
+
+  const endpoint = activeProfile.endpoint || 'https://api.groq.com/openai/v1';
+  const apiKey = activeProfile.apiKey;
+  const model = activeProfile.modelId;
+
+  const result = await callCompletionAPI({
+    endpoint,
+    apiKey,
+    model,
+    systemPrompt,
+    userContent,
+    temperature: settings.temperature,
+    maxTokens: settings.maxTokens
+  });
+
+  updateBadge('DONE', '#10b981', 3000);
+  if (settings.showNotifications) {
+    const title = templateId === 'rewriter' ? 'Prompt Rewritten' : 'Handoff Ready';
+    const body = templateId === 'rewriter' ? 'Prompt successfully enhanced.' : 'Context digest synthesized.';
+    notifyUser(title, body);
+  }
+
+  return { success: true, summary: result.content, model: result.model, usage: result.usage };
+}
+
+/**
  * Message Bus Dispatcher
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -463,82 +538,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // ── Unified Template Execution Engine ──
     case 'RUN_TEMPLATE': {
       updateBadge('RUN', '#8b5cf6');
-      (async () => {
-        try {
-          const config = await getStorageData();
-          const settings = { ...DEFAULT_CONFIG.settings, ...(config.settings || {}) };
-          const activeProfile = resolveActiveProfile(config);
-
-          const {
-            templateId = 'digest',
-            userContent = '',
-            extra = {}
-          } = payload || {};
-
-          if (!userContent || userContent.trim().length === 0) {
-            throw new Error('No content provided for processing.');
-          }
-
-          // 1. Resolve base template
-          let systemPrompt = resolveTemplatePrompt(config.templates, templateId);
-
-          // 2. Chain Thinking Mode depth template if enabled or requested
-          const thinkingEnabled = extra.thinkingDepth !== undefined ? Boolean(extra.thinkingDepth) : settings.thinkingModeEnabled;
-          if (thinkingEnabled) {
-            const depth = extra.thinkingDepth || settings.thinkingModeDepth || 'standard';
-            const depthTemplateId = `thinking_${depth}`;
-            const thinkingPrompt = resolveTemplatePrompt(config.templates, depthTemplateId);
-            if (thinkingPrompt) {
-              systemPrompt = `${thinkingPrompt}\n\n${systemPrompt}`;
-            }
-          }
-
-          // 3. Chain Persona instruction block if active or specified
-          const personaId = extra.personaId !== undefined ? extra.personaId : config.activePersonaId;
-          if (personaId) {
-            const personas = config.personas || DEFAULT_PERSONAS;
-            const persona = personas.find(p => p.id === personaId);
-            if (persona && persona.instructionBlock) {
-              systemPrompt = `[Active Persona: ${persona.name}]\n${persona.instructionBlock}\n\n${systemPrompt}`;
-            }
-          }
-
-          // 4. Chain Auto-Suggested Next Steps if enabled and template is digest
-          const autoSuggestEnabled = extra.autoSuggest !== undefined ? Boolean(extra.autoSuggest) : settings.autoSuggestEnabled;
-          if (autoSuggestEnabled && templateId === 'digest') {
-            const autoSuggestPrompt = resolveTemplatePrompt(config.templates, 'auto_suggest');
-            if (autoSuggestPrompt) {
-              systemPrompt = `${systemPrompt}\n\n${autoSuggestPrompt}`;
-            }
-          }
-
-          const endpoint = activeProfile.endpoint || 'https://api.groq.com/openai/v1';
-          const apiKey = activeProfile.apiKey;
-          const model = activeProfile.modelId;
-
-          const result = await callCompletionAPI({
-            endpoint,
-            apiKey,
-            model,
-            systemPrompt,
-            userContent,
-            temperature: settings.temperature,
-            maxTokens: settings.maxTokens
-          });
-
-          updateBadge('DONE', '#10b981', 3000);
-          if (settings.showNotifications) {
-            const title = templateId === 'rewriter' ? 'Prompt Rewritten' : 'Handoff Ready';
-            const body = templateId === 'rewriter' ? 'Prompt successfully enhanced.' : 'Context digest synthesized.';
-            notifyUser(title, body);
-          }
-
-          sendResponse({ success: true, summary: result.content, model: result.model, usage: result.usage });
-        } catch (err) {
-          updateBadge('ERR', '#ef4444', 4000);
-          sendResponse({ success: false, error: err.message });
-        }
-      })();
+      executeTemplateRun(payload).then(res => {
+        sendResponse(res);
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
       return true;
     }
 
@@ -751,14 +755,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Legacy action forwards
     case 'SUMMARIZE':
     case 'SUMMARIZE_GROQ': {
-      chrome.runtime.sendMessage({
-        action: 'RUN_TEMPLATE',
-        payload: {
-          templateId: 'digest',
-          userContent: payload?.transcript,
-          extra: payload?.extra || {}
-        }
-      }, sendResponse);
+      updateBadge('RUN', '#8b5cf6');
+      executeTemplateRun({
+        templateId: 'digest',
+        userContent: payload?.transcript,
+        extra: payload?.extra || {}
+      }).then(res => {
+        sendResponse(res);
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
       return true;
     }
 
