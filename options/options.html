@@ -8,20 +8,14 @@
 </head>
 <body>
   <div class="options-page">
-    <!-- Brand Header -->
+    <!-- Header -->
     <header class="page-header">
       <div class="brand-wrap">
         <div class="brand-logo-wrap">
-          <svg class="brand-logo" viewBox="0 0 24 24" fill="none">
-            <defs>
-              <linearGradient id="hdr-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#a5b4fc"/>
-                <stop offset="100%" stop-color="#c084fc"/>
-              </linearGradient>
-            </defs>
-            <path d="M4 8C4 5.79 5.79 4 8 4H14C17.31 4 20 6.69 20 10C20 12.21 18.21 14 16 14H10C6.69 14 4 11.31 4 8Z" stroke="url(#hdr-grad)" stroke-width="2.2" stroke-linecap="round"/>
-            <path d="M20 16C20 18.21 18.21 20 16 20H10C6.69 20 4 17.31 4 14C4 11.79 5.79 10 8 10H14C17.31 10 20 12.69 20 16Z" stroke="url(#hdr-grad)" stroke-width="2.2" stroke-linecap="round"/>
-            <circle cx="12" cy="12" r="2.2" fill="#ffffff"/>
+          <svg class="brand-logo" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8C4 5.79 5.79 4 8 4H14C17.31 4 20 6.69 20 10C20 12.21 18.21 14 16 14H10C6.69 14 4 11.31 4 8Z"/>
+            <path d="M20 16C20 18.21 18.21 20 16 20H10C6.69 20 4 17.31 4 14C4 11.79 5.79 10 8 10H14C17.31 10 20 12.69 20 16Z"/>
+            <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
           </svg>
         </div>
         <div>
@@ -29,48 +23,49 @@
           <p class="brand-subtitle">Settings &amp; Connection Profiles</p>
         </div>
       </div>
-      <div class="version-tag">v1.1.0</div>
+      <div class="version-tag">v2.0.0</div>
     </header>
 
-    <!-- Section: Connection Profiles -->
-    <section class="settings-section">
+    <!-- ============================================================
+         Section 1: Connection Profiles
+         ============================================================ -->
+    <section class="settings-section" id="section-profiles">
       <h2 class="section-title">Connection Profiles</h2>
-      <p class="section-desc">Each profile holds an API endpoint, model, and key. Switch between providers instantly.</p>
+      <p class="section-desc">Each profile holds an API endpoint, model ID, and API key. Switch between models and providers seamlessly.</p>
 
-      <!-- Profile List -->
-      <div id="profile-list" class="profile-list">
-        <!-- Dynamically populated -->
+      <div id="profile-list" class="item-list">
+        <!-- Dynamically rendered -->
       </div>
 
       <button id="btn-add-profile" class="btn btn-secondary btn-sm" style="margin-top: 8px;">+ Add Profile</button>
 
-      <!-- Profile Editor (hidden by default) -->
-      <div id="profile-editor" class="profile-editor hidden">
-        <h3 id="editor-title" class="editor-title">Edit Profile</h3>
+      <!-- Profile Editor Modal / Inline Form -->
+      <div id="profile-editor" class="editor-panel hidden">
+        <h3 id="profile-editor-title" class="editor-title">Edit Profile</h3>
         <input type="hidden" id="editor-profile-id">
 
         <div class="form-group">
-          <label for="editor-name" class="form-label">Profile Name</label>
-          <input type="text" id="editor-name" class="text-input" placeholder="e.g. Groq — Fast">
+          <label for="editor-profile-name" class="form-label">Profile Name</label>
+          <input type="text" id="editor-profile-name" class="text-input" placeholder="e.g. Groq — Fast">
         </div>
 
         <div class="form-group">
-          <label for="editor-endpoint" class="form-label">API Endpoint (OpenAI-Compatible)</label>
-          <input type="text" id="editor-endpoint" class="text-input" placeholder="https://api.groq.com/openai/v1">
-          <p class="form-hint">Must be an OpenAI-compatible /chat/completions endpoint. Works with Groq, OpenAI, OpenRouter, Together, Ollama, etc.</p>
+          <label for="editor-profile-endpoint" class="form-label">API Endpoint (OpenAI-Compatible)</label>
+          <input type="text" id="editor-profile-endpoint" class="text-input" placeholder="https://api.groq.com/openai/v1">
+          <p class="form-hint">Works with Groq, OpenRouter, Together AI, OpenAI, Mistral, and local endpoints like Ollama (http://localhost:11434/v1).</p>
         </div>
 
         <div class="form-group">
-          <label for="editor-model" class="form-label">Model ID</label>
-          <input type="text" id="editor-model" class="text-input" placeholder="llama-3.3-70b-versatile">
-          <p class="form-hint">Enter the exact model ID string (e.g. llama-3.3-70b-versatile, gpt-4o, claude-3-opus-20240229).</p>
+          <label for="editor-profile-model" class="form-label">Model ID</label>
+          <input type="text" id="editor-profile-model" class="text-input" placeholder="llama-3.3-70b-versatile">
+          <p class="form-hint">Exact model ID string (e.g. llama-3.3-70b-versatile, gpt-4o, claude-3-5-sonnet, deepseek-chat).</p>
         </div>
 
         <div class="form-group">
-          <label for="editor-apikey" class="form-label">API Key</label>
+          <label for="editor-profile-apikey" class="form-label">API Key</label>
           <div class="input-with-button">
-            <input type="password" id="editor-apikey" class="text-input" placeholder="sk-... or gsk_..." autocomplete="off">
-            <button id="btn-toggle-key" class="btn btn-secondary btn-sm" title="Show/Hide">👁</button>
+            <input type="password" id="editor-profile-apikey" class="text-input" placeholder="sk-... or gsk_..." autocomplete="off">
+            <button id="btn-toggle-key" class="btn btn-secondary btn-sm" title="Show/Hide">View</button>
           </div>
         </div>
 
@@ -78,17 +73,101 @@
           <button id="btn-test-connection" class="btn btn-secondary">Test Connection</button>
           <div id="test-status" class="test-status"></div>
           <div class="editor-btn-group">
-            <button id="btn-cancel-edit" class="btn btn-secondary btn-sm">Cancel</button>
+            <button id="btn-cancel-profile" class="btn btn-secondary btn-sm">Cancel</button>
             <button id="btn-save-profile" class="btn btn-primary btn-sm">Save Profile</button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Section: Advanced Settings (collapsible) -->
-    <details class="settings-section advanced-section">
+    <!-- ============================================================
+         Section 2: Custom Personas (Settings-Only CRUD)
+         ============================================================ -->
+    <section class="settings-section" id="personas">
+      <div class="section-header-row">
+        <div>
+          <h2 class="section-title">Personas</h2>
+          <p class="section-desc">Create custom assistant personas with tailored instructions. Applied directly in the popup or inserted into the active chat composer.</p>
+        </div>
+        <div class="section-header-actions">
+          <button id="btn-export-personas" class="btn btn-secondary btn-xs" title="Export personas to JSON">Export JSON</button>
+          <button id="btn-import-personas" class="btn btn-secondary btn-xs" title="Import personas from JSON">Import JSON</button>
+          <input type="file" id="file-import-personas" accept=".json" class="hidden">
+        </div>
+      </div>
+
+      <div id="persona-list" class="item-list">
+        <!-- Dynamically rendered -->
+      </div>
+
+      <button id="btn-add-persona" class="btn btn-secondary btn-sm" style="margin-top: 8px;">+ Add Persona</button>
+
+      <!-- Persona Editor -->
+      <div id="persona-editor" class="editor-panel hidden">
+        <h3 id="persona-editor-title" class="editor-title">Edit Persona</h3>
+        <input type="hidden" id="editor-persona-id">
+
+        <div class="form-group">
+          <label for="editor-persona-name" class="form-label">Persona Name</label>
+          <input type="text" id="editor-persona-name" class="text-input" placeholder="e.g. Senior Software Architect">
+        </div>
+
+        <div class="form-group">
+          <label for="editor-persona-desc" class="form-label">Short Description</label>
+          <input type="text" id="editor-persona-desc" class="text-input" placeholder="e.g. Focuses on system scalability and clean code">
+        </div>
+
+        <div class="form-group">
+          <label for="editor-persona-instruction" class="form-label">Instruction Block (Prompt Directives)</label>
+          <textarea id="editor-persona-instruction" class="textarea-input" rows="4" placeholder="You are a senior architect..."></textarea>
+          <p class="form-hint">These instructions are prepended to outgoing template executions when this persona is active.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="editor-persona-platform" class="form-label">Preferred Platform</label>
+          <select id="editor-persona-platform" class="select-input">
+            <option value="any">Any Platform (Default)</option>
+            <option value="chatgpt">ChatGPT</option>
+            <option value="claude">Claude</option>
+            <option value="gemini">Gemini</option>
+            <option value="perplexity">Perplexity</option>
+            <option value="deepseek">DeepSeek</option>
+          </select>
+        </div>
+
+        <div class="editor-actions">
+          <div class="editor-btn-group" style="margin-left: auto;">
+            <button id="btn-cancel-persona" class="btn btn-secondary btn-sm">Cancel</button>
+            <button id="btn-save-persona" class="btn btn-primary btn-sm">Save Persona</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Section 3: Template Registry & Prompt Customizer
+         ============================================================ -->
+    <details class="settings-section advanced-section" id="section-templates">
       <summary class="section-title clickable">
-        Advanced Settings
+        Template Registry &amp; Prompt Customizer
+        <span class="chevron">▶</span>
+      </summary>
+
+      <div class="advanced-body">
+        <p class="section-desc">Customize system prompts for each template engine action. Reset any template back to its verified default at any time.</p>
+        
+        <div id="templates-container" class="templates-list">
+          <!-- Dynamically generated per template in registry -->
+        </div>
+      </div>
+    </details>
+
+    <!-- ============================================================
+         Section 4: General & Advanced Preferences
+         ============================================================ -->
+    <details class="settings-section advanced-section" id="section-preferences">
+      <summary class="section-title clickable">
+        General &amp; Advanced Preferences
         <span class="chevron">▶</span>
       </summary>
 
@@ -96,33 +175,30 @@
         <div class="form-group">
           <label for="temperature" class="form-label">Temperature: <span id="temp-val">0.2</span></label>
           <input type="range" id="temperature" min="0.0" max="1.0" step="0.05" value="0.2" class="range-slider">
-          <p class="form-hint">Lower values (0.1–0.2) produce deterministic, precise context digests.</p>
+          <p class="form-hint">Lower values (0.1–0.2) produce deterministic, high-fidelity context digests.</p>
         </div>
 
         <div class="form-group">
-          <label for="custom-system-prompt" class="form-label">
-            System Prompt Template
-            <button id="btn-reset-prompt" class="btn btn-secondary btn-xs">Reset to Default</button>
-          </label>
-          <textarea id="custom-system-prompt" class="textarea-input" rows="10"></textarea>
-          <p class="form-hint">Governs the 4-section digest structure (Goal, Decisions, Artifacts, Next Steps).</p>
+          <label for="max-clipboard-entries" class="form-label">Max Clipboard History Items</label>
+          <input type="number" id="max-clipboard-entries" min="5" max="100" value="30" class="text-input" style="max-width: 120px;">
+          <p class="form-hint">Number of recent ChatCourier copies saved in local memory.</p>
         </div>
 
         <div class="toggle-row">
           <div>
-            <div class="toggle-title">Auto-Copy Digest to Clipboard</div>
-            <div class="toggle-desc">Automatically copies the digest when summarization completes.</div>
+            <div class="toggle-title">Fast Mode (Skip Virtualized DOM Scroll Sweep)</div>
+            <div class="toggle-desc">Extracts only currently visible messages for speed. Leave OFF for complete thread capture.</div>
           </div>
           <label class="switch">
-            <input type="checkbox" id="toggle-autocopy" checked>
+            <input type="checkbox" id="toggle-fastmode">
             <span class="slider"></span>
           </label>
         </div>
 
         <div class="toggle-row">
           <div>
-            <div class="toggle-title">Show Desktop Notifications</div>
-            <div class="toggle-desc">System notification when extraction or handoff finishes.</div>
+            <div class="toggle-title">Desktop Notifications</div>
+            <div class="toggle-desc">Show notification when digest synthesis or prompt rewrite finishes.</div>
           </div>
           <label class="switch">
             <input type="checkbox" id="toggle-notifications" checked>
@@ -132,8 +208,8 @@
 
         <div class="toggle-row">
           <div>
-            <div class="toggle-title">Enable In-Tab Floating Button (FAB)</div>
-            <div class="toggle-desc">Show the floating orb on supported LLM pages.</div>
+            <div class="toggle-title">Enable In-Tab Floating Companion (FAB)</div>
+            <div class="toggle-desc">Show the draggable orb on supported LLM chat pages.</div>
           </div>
           <label class="switch">
             <input type="checkbox" id="toggle-fab" checked>
@@ -149,10 +225,10 @@
     </details>
 
     <!-- Save Footer -->
-    <div class="action-footer">
+    <footer class="action-footer">
       <span id="save-status" class="save-status">All changes saved automatically</span>
-      <button id="btn-save-all" class="btn btn-primary btn-sm">Save Settings</button>
-    </div>
+      <button id="btn-save-all" class="btn btn-primary btn-sm">Save All Settings</button>
+    </footer>
   </div>
 
   <script src="options.js"></script>

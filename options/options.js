@@ -1,53 +1,47 @@
 /**
  * ChatCourier - options.js
- * Single-Page Options Controller with Profile CRUD & Advanced Settings
+ * Settings Controller: Profiles CRUD, Personas Manager & Template Registry Customizer
  */
 
-const DEFAULT_SYSTEM_PROMPT = `You are ChatCourier, an elite LLM Context Handoff Engine.
-Your mission is to ingest a conversation transcript from another AI platform (ChatGPT, Claude, Gemini, Perplexity, DeepSeek) and synthesize a high-density, structured Context Handoff Digest. This digest will be passed directly to another frontier LLM as prompt context to seamlessly continue work without loss of fidelity.
-
-You must format your response with the following 4 structured sections in clean GitHub-flavored Markdown:
-
-# 🚀 Context Handoff Digest: [Topic / Project Name]
-> **Source Platform**: [Platform Name] | **Session Date**: [Date] | **Turns Analyzed**: [Turn Count]
-
-## 1. 🎯 Primary Goal & High-Level Context
-- Concise explanation of the core problem, objective, user intent, and high-level architecture.
-
-## 2. ⚡ Key Decisions Made & Architectural Constraints
-- Technical choices agreed upon (libraries, algorithms, conventions, design patterns).
-- Hard constraints, non-negotiable requirements, or rejected alternatives with reasons.
-
-## 3. 📦 Active Code, Schemas & Working Data Artifacts
-- Output all working code snippets, schemas, API contracts, configs, or data structures established in the session.
-- Preserve exact syntax, language tags, and symbol names.
-
-## 4. 📋 Pending Tasks & Immediate Next Steps
-- Concrete checklist of remaining tasks, unfinished logic, edge cases to handle, and direct prompts for the receiving LLM to execute next.
-
-Maintain high technical density. Do not include conversational filler.`;
-
 document.addEventListener('DOMContentLoaded', async () => {
-  // Elements
+  // Elements: Profiles
   const profileList = document.getElementById('profile-list');
   const btnAddProfile = document.getElementById('btn-add-profile');
   const profileEditor = document.getElementById('profile-editor');
-  const editorTitle = document.getElementById('editor-title');
+  const profileEditorTitle = document.getElementById('profile-editor-title');
   const editorProfileId = document.getElementById('editor-profile-id');
-  const editorName = document.getElementById('editor-name');
-  const editorEndpoint = document.getElementById('editor-endpoint');
-  const editorModel = document.getElementById('editor-model');
-  const editorApiKey = document.getElementById('editor-apikey');
+  const editorProfileName = document.getElementById('editor-profile-name');
+  const editorProfileEndpoint = document.getElementById('editor-profile-endpoint');
+  const editorProfileModel = document.getElementById('editor-profile-model');
+  const editorProfileApiKey = document.getElementById('editor-profile-apikey');
   const btnToggleKey = document.getElementById('btn-toggle-key');
   const btnTestConnection = document.getElementById('btn-test-connection');
   const testStatus = document.getElementById('test-status');
-  const btnCancelEdit = document.getElementById('btn-cancel-edit');
+  const btnCancelProfile = document.getElementById('btn-cancel-profile');
   const btnSaveProfile = document.getElementById('btn-save-profile');
+
+  // Elements: Personas
+  const personaList = document.getElementById('persona-list');
+  const btnAddPersona = document.getElementById('btn-add-persona');
+  const personaEditor = document.getElementById('persona-editor');
+  const personaEditorTitle = document.getElementById('persona-editor-title');
+  const editorPersonaId = document.getElementById('editor-persona-id');
+  const editorPersonaName = document.getElementById('editor-persona-name');
+  const editorPersonaDesc = document.getElementById('editor-persona-desc');
+  const editorPersonaInstruction = document.getElementById('editor-persona-instruction');
+  const editorPersonaPlatform = document.getElementById('editor-persona-platform');
+  const btnCancelPersona = document.getElementById('btn-cancel-persona');
+  const btnSavePersona = document.getElementById('btn-save-persona');
+  const btnExportPersonas = document.getElementById('btn-export-personas');
+  const btnImportPersonas = document.getElementById('btn-import-personas');
+  const fileImportPersonas = document.getElementById('file-import-personas');
+
+  // Elements: Templates & Settings
+  const templatesContainer = document.getElementById('templates-container');
   const temperatureSlider = document.getElementById('temperature');
   const tempValDisplay = document.getElementById('temp-val');
-  const customSystemPromptArea = document.getElementById('custom-system-prompt');
-  const btnResetPrompt = document.getElementById('btn-reset-prompt');
-  const toggleAutocopy = document.getElementById('toggle-autocopy');
+  const maxClipboardEntries = document.getElementById('max-clipboard-entries');
+  const toggleFastmode = document.getElementById('toggle-fastmode');
   const toggleNotifications = document.getElementById('toggle-notifications');
   const toggleFab = document.getElementById('toggle-fab');
   const btnSaveAll = document.getElementById('btn-save-all');
@@ -55,10 +49,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let currentConfig = null;
 
-  // ─── Helpers ───
-
-  function generateId() {
-    return 'prof_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+  function generateId(prefix = 'id') {
+    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   }
 
   function showSavedFeedback(msg, isError = false) {
@@ -70,8 +62,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 3500);
   }
 
-  // ─── Profile List Rendering ───
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
 
+  function downloadJSON(filename, data) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ─── Profile Management ───
   function renderProfileList(config) {
     profileList.innerHTML = '';
     const profiles = config.profiles || [];
@@ -80,7 +89,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     profiles.forEach((profile) => {
       const isActive = profile.id === activeId;
       const card = document.createElement('div');
-      card.className = `profile-card ${isActive ? 'active' : ''}`;
+      card.className = `card-item ${isActive ? 'active' : ''}`;
       card.dataset.profileId = profile.id;
 
       const hasKey = profile.apiKey && profile.apiKey.trim().length > 5;
@@ -88,19 +97,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       const keyLabel = hasKey ? 'Key configured' : 'No key';
 
       card.innerHTML = `
-        <div class="profile-main">
-          <div class="profile-info">
-            <div class="profile-name-row">
+        <div class="card-main">
+          <div class="card-info">
+            <div class="card-name-row">
               ${statusDot}
-              <span class="profile-name">${escapeHtml(profile.name || profile.id)}</span>
+              <span class="card-name">${escapeHtml(profile.name || profile.id)}</span>
               ${isActive ? '<span class="active-badge">ACTIVE</span>' : ''}
             </div>
-            <div class="profile-meta">${escapeHtml(profile.modelId || '—')} • ${keyLabel}</div>
+            <div class="card-meta">${escapeHtml(profile.modelId || '—')} • ${keyLabel}</div>
           </div>
-          <div class="profile-actions">
-            ${!isActive ? `<button class="btn btn-secondary btn-xs profile-action-btn" data-action="activate" data-id="${profile.id}" title="Set as Active">Use</button>` : ''}
-            <button class="btn btn-secondary btn-xs profile-action-btn" data-action="edit" data-id="${profile.id}" title="Edit">Edit</button>
-            ${profiles.length > 1 ? `<button class="btn btn-secondary btn-xs profile-action-btn danger" data-action="delete" data-id="${profile.id}" title="Delete">✕</button>` : ''}
+          <div class="card-actions">
+            ${!isActive ? `<button class="btn btn-secondary btn-xs" data-action="activate-profile" data-id="${profile.id}">Use</button>` : ''}
+            <button class="btn btn-secondary btn-xs" data-action="edit-profile" data-id="${profile.id}">Edit</button>
+            ${profiles.length > 1 ? `<button class="btn btn-secondary btn-xs danger" data-action="delete-profile" data-id="${profile.id}">✕</button>` : ''}
           </div>
         </div>
       `;
@@ -108,27 +117,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       profileList.appendChild(card);
     });
 
-    // Bind profile action buttons
-    profileList.querySelectorAll('.profile-action-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    profileList.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
         const action = btn.dataset.action;
         const id = btn.dataset.id;
-        if (action === 'activate') activateProfile(id);
-        else if (action === 'edit') openEditor(id);
-        else if (action === 'delete') deleteProfile(id);
+        if (action === 'activate-profile') activateProfile(id);
+        else if (action === 'edit-profile') openProfileEditor(id);
+        else if (action === 'delete-profile') deleteProfile(id);
       });
     });
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  // ─── Profile Editor ───
-
-  function openEditor(profileId = null) {
+  function openProfileEditor(profileId = null) {
     profileEditor.classList.remove('hidden');
     testStatus.textContent = '';
     testStatus.className = 'test-status';
@@ -136,54 +136,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (profileId) {
       const profile = (currentConfig.profiles || []).find(p => p.id === profileId);
       if (!profile) return;
-      editorTitle.textContent = 'Edit Profile';
+      profileEditorTitle.textContent = 'Edit Profile';
       editorProfileId.value = profile.id;
-      editorName.value = profile.name || '';
-      editorEndpoint.value = profile.endpoint || '';
-      editorModel.value = profile.modelId || '';
-      editorApiKey.value = profile.apiKey || '';
+      editorProfileName.value = profile.name || '';
+      editorProfileEndpoint.value = profile.endpoint || '';
+      editorProfileModel.value = profile.modelId || '';
+      editorProfileApiKey.value = profile.apiKey || '';
     } else {
-      editorTitle.textContent = 'Add New Profile';
-      editorProfileId.value = generateId();
-      editorName.value = '';
-      editorEndpoint.value = 'https://api.groq.com/openai/v1';
-      editorModel.value = '';
-      editorApiKey.value = '';
+      profileEditorTitle.textContent = 'Add New Profile';
+      editorProfileId.value = generateId('prof');
+      editorProfileName.value = '';
+      editorProfileEndpoint.value = 'https://api.groq.com/openai/v1';
+      editorProfileModel.value = 'llama-3.3-70b-versatile';
+      editorProfileApiKey.value = '';
     }
 
-    editorName.focus();
+    editorProfileName.focus();
   }
 
-  function closeEditor() {
+  function closeProfileEditor() {
     profileEditor.classList.add('hidden');
   }
 
-  btnAddProfile.addEventListener('click', () => openEditor(null));
-  btnCancelEdit.addEventListener('click', closeEditor);
+  btnAddProfile.addEventListener('click', () => openProfileEditor(null));
+  btnCancelProfile.addEventListener('click', closeProfileEditor);
 
-  // Toggle API key visibility
   btnToggleKey.addEventListener('click', () => {
-    if (editorApiKey.type === 'password') {
-      editorApiKey.type = 'text';
-      btnToggleKey.textContent = '🔒';
-    } else {
-      editorApiKey.type = 'password';
-      btnToggleKey.textContent = '👁';
-    }
+    const isPassword = editorProfileApiKey.type === 'password';
+    editorProfileApiKey.type = isPassword ? 'text' : 'password';
+    btnToggleKey.textContent = isPassword ? 'Hide' : 'View';
   });
 
-  // Test Connection
   btnTestConnection.addEventListener('click', () => {
-    const endpoint = editorEndpoint.value.trim();
-    const apiKey = editorApiKey.value.trim();
+    const endpoint = editorProfileEndpoint.value.trim();
+    const apiKey = editorProfileApiKey.value.trim();
 
-    if (!endpoint) {
-      testStatus.textContent = 'Please enter an endpoint.';
-      testStatus.className = 'test-status error';
-      return;
-    }
-    if (!apiKey) {
-      testStatus.textContent = 'Please enter an API key.';
+    if (!endpoint || !apiKey) {
+      testStatus.textContent = 'Endpoint and API Key are required.';
       testStatus.className = 'test-status error';
       return;
     }
@@ -196,24 +185,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       payload: { endpoint, apiKey }
     }, (result) => {
       if (result && result.valid) {
-        const modelCount = result.models ? result.models.length : 0;
-        testStatus.textContent = `✓ Connected! ${modelCount > 0 ? `${modelCount} models available` : 'Endpoint reachable'}`;
+        testStatus.textContent = 'Connected successfully!';
         testStatus.className = 'test-status success';
       } else {
-        testStatus.textContent = `✕ ${result?.message || 'Connection failed'}`;
+        testStatus.textContent = result?.message || 'Connection failed';
         testStatus.className = 'test-status error';
       }
     });
   });
 
-  // Save Profile
   btnSaveProfile.addEventListener('click', () => {
     const profile = {
       id: editorProfileId.value,
-      name: editorName.value.trim() || 'Unnamed Profile',
-      endpoint: editorEndpoint.value.trim(),
-      modelId: editorModel.value.trim(),
-      apiKey: editorApiKey.value.trim()
+      name: editorProfileName.value.trim() || 'Unnamed Profile',
+      endpoint: editorProfileEndpoint.value.trim(),
+      modelId: editorProfileModel.value.trim(),
+      apiKey: editorProfileApiKey.value.trim()
     };
 
     if (!profile.endpoint) {
@@ -226,66 +213,271 @@ document.addEventListener('DOMContentLoaded', async () => {
       payload: { profile }
     }, (res) => {
       if (res && res.success) {
-        showSavedFeedback(`✓ Profile "${profile.name}" saved`);
-        closeEditor();
+        showSavedFeedback(`Profile "${profile.name}" saved`);
+        closeProfileEditor();
         loadConfig();
-      } else {
-        showSavedFeedback(`Error: ${res?.error || 'Save failed'}`, true);
       }
     });
   });
 
-  // Activate Profile
   function activateProfile(profileId) {
     chrome.runtime.sendMessage({
       action: 'SET_ACTIVE_PROFILE',
       payload: { profileId }
-    }, (res) => {
-      if (res && res.success) {
-        showSavedFeedback('✓ Active profile changed');
-        loadConfig();
-      }
+    }, () => {
+      showSavedFeedback('Active profile changed');
+      loadConfig();
     });
   }
 
-  // Delete Profile
   function deleteProfile(profileId) {
-    if (!confirm('Delete this profile? This cannot be undone.')) return;
-
+    if (!confirm('Delete this profile?')) return;
     chrome.runtime.sendMessage({
       action: 'DELETE_PROFILE',
       payload: { profileId }
-    }, (res) => {
-      if (res && res.success) {
-        showSavedFeedback('Profile deleted');
-        loadConfig();
-      } else {
-        showSavedFeedback(`Error: ${res?.error || 'Delete failed'}`, true);
-      }
+    }, () => {
+      showSavedFeedback('Profile deleted');
+      loadConfig();
     });
   }
 
-  // ─── Advanced Settings ───
+  // ─── Persona Management (§4 Settings-Only CRUD) ───
+  function renderPersonaList(config) {
+    personaList.innerHTML = '';
+    const personas = config.personas || [];
+    const activeId = config.activePersonaId;
 
+    if (personas.length === 0) {
+      personaList.innerHTML = '<div class="empty-hint">No personas created yet. Click "+ Add Persona" to create one.</div>';
+      return;
+    }
+
+    personas.forEach((persona) => {
+      const isActive = persona.id === activeId;
+      const card = document.createElement('div');
+      card.className = `card-item ${isActive ? 'active' : ''}`;
+      card.dataset.personaId = persona.id;
+
+      card.innerHTML = `
+        <div class="card-main">
+          <div class="card-info">
+            <div class="card-name-row">
+              <span class="card-name">${escapeHtml(persona.name)}</span>
+              ${isActive ? '<span class="active-badge">ACTIVE</span>' : ''}
+            </div>
+            <div class="card-meta">${escapeHtml(persona.description || 'No description')} • Platform: ${escapeHtml(persona.preferredPlatform || 'any')}</div>
+          </div>
+          <div class="card-actions">
+            ${!isActive ? `<button class="btn btn-secondary btn-xs" data-action="activate-persona" data-id="${persona.id}">Set Active</button>` : `<button class="btn btn-secondary btn-xs" data-action="deactivate-persona" data-id="${persona.id}">Clear</button>`}
+            <button class="btn btn-secondary btn-xs" data-action="edit-persona" data-id="${persona.id}">Edit</button>
+            <button class="btn btn-secondary btn-xs danger" data-action="delete-persona" data-id="${persona.id}">✕</button>
+          </div>
+        </div>
+      `;
+
+      personaList.appendChild(card);
+    });
+
+    personaList.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        if (action === 'activate-persona') activatePersona(id);
+        else if (action === 'deactivate-persona') activatePersona(null);
+        else if (action === 'edit-persona') openPersonaEditor(id);
+        else if (action === 'delete-persona') deletePersona(id);
+      });
+    });
+  }
+
+  function openPersonaEditor(personaId = null) {
+    personaEditor.classList.remove('hidden');
+
+    if (personaId) {
+      const persona = (currentConfig.personas || []).find(p => p.id === personaId);
+      if (!persona) return;
+      personaEditorTitle.textContent = 'Edit Persona';
+      editorPersonaId.value = persona.id;
+      editorPersonaName.value = persona.name || '';
+      editorPersonaDesc.value = persona.description || '';
+      editorPersonaInstruction.value = persona.instructionBlock || '';
+      editorPersonaPlatform.value = persona.preferredPlatform || 'any';
+    } else {
+      personaEditorTitle.textContent = 'Add New Persona';
+      editorPersonaId.value = generateId('persona');
+      editorPersonaName.value = '';
+      editorPersonaDesc.value = '';
+      editorPersonaInstruction.value = '';
+      editorPersonaPlatform.value = 'any';
+    }
+
+    editorPersonaName.focus();
+  }
+
+  function closePersonaEditor() {
+    personaEditor.classList.add('hidden');
+  }
+
+  btnAddPersona.addEventListener('click', () => openPersonaEditor(null));
+  btnCancelPersona.addEventListener('click', closePersonaEditor);
+
+  btnSavePersona.addEventListener('click', () => {
+    const persona = {
+      id: editorPersonaId.value,
+      name: editorPersonaName.value.trim() || 'Custom Persona',
+      description: editorPersonaDesc.value.trim(),
+      instructionBlock: editorPersonaInstruction.value.trim(),
+      preferredPlatform: editorPersonaPlatform.value || 'any'
+    };
+
+    if (!persona.instructionBlock) {
+      showSavedFeedback('Instruction block cannot be empty', true);
+      return;
+    }
+
+    chrome.runtime.sendMessage({
+      action: 'SAVE_PERSONA',
+      payload: { persona }
+    }, (res) => {
+      if (res && res.success) {
+        showSavedFeedback(`Persona "${persona.name}" saved`);
+        closePersonaEditor();
+        loadConfig();
+      }
+    });
+  });
+
+  function activatePersona(personaId) {
+    chrome.runtime.sendMessage({
+      action: 'SET_ACTIVE_PERSONA',
+      payload: { personaId }
+    }, () => {
+      showSavedFeedback(personaId ? 'Active persona updated' : 'Standard mode restored');
+      loadConfig();
+    });
+  }
+
+  function deletePersona(personaId) {
+    if (!confirm('Delete this persona?')) return;
+    chrome.runtime.sendMessage({
+      action: 'DELETE_PERSONA',
+      payload: { personaId }
+    }, () => {
+      showSavedFeedback('Persona deleted');
+      loadConfig();
+    });
+  }
+
+  // Persona JSON Export / Import
+  btnExportPersonas.addEventListener('click', () => {
+    const personas = currentConfig?.personas || [];
+    downloadJSON('chatcourier_personas.json', personas);
+    showSavedFeedback('Exported personas to JSON');
+  });
+
+  btnImportPersonas.addEventListener('click', () => {
+    fileImportPersonas.click();
+  });
+
+  fileImportPersonas.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target.result);
+        if (!Array.isArray(imported)) throw new Error('File does not contain an array of personas');
+
+        chrome.runtime.sendMessage({
+          action: 'IMPORT_PERSONAS',
+          payload: { personas: imported }
+        }, (res) => {
+          if (res && res.success) {
+            showSavedFeedback(`Imported ${res.count} personas successfully`);
+            loadConfig();
+          } else {
+            showSavedFeedback(`Import failed: ${res?.error}`, true);
+          }
+        });
+      } catch (parseErr) {
+        showSavedFeedback(`JSON parse error: ${parseErr.message}`, true);
+      }
+    };
+    reader.readAsText(file);
+    fileImportPersonas.value = '';
+  });
+
+  // ─── Template Registry Customizer (§9) ───
+  function renderTemplates(config) {
+    templatesContainer.innerHTML = '';
+    const templates = config.templates || [];
+
+    templates.forEach((tpl) => {
+      const card = document.createElement('div');
+      card.className = 'template-item';
+      card.dataset.templateId = tpl.id;
+
+      const currentValue = tpl.userOverride || tpl.defaultPrompt;
+      const isOverridden = Boolean(tpl.userOverride);
+
+      card.innerHTML = `
+        <div class="template-header">
+          <div class="template-title-wrap">
+            <span class="template-title">${escapeHtml(tpl.label || tpl.id)}</span>
+            ${isOverridden ? '<span class="custom-badge">CUSTOMIZED</span>' : ''}
+          </div>
+          <button class="btn btn-secondary btn-xs btn-reset-tpl" data-id="${tpl.id}" title="Reset to verified default">Reset to Default</button>
+        </div>
+        <textarea class="textarea-input tpl-textarea" rows="${tpl.id === 'digest' ? 8 : 4}" data-id="${tpl.id}">${escapeHtml(currentValue)}</textarea>
+      `;
+
+      templatesContainer.appendChild(card);
+    });
+
+    // Wire live auto-save and reset on templates
+    templatesContainer.querySelectorAll('.tpl-textarea').forEach(textarea => {
+      textarea.addEventListener('change', () => {
+        const templateId = textarea.dataset.id;
+        const userOverride = textarea.value;
+        chrome.runtime.sendMessage({
+          action: 'SAVE_TEMPLATE',
+          payload: { templateId, userOverride }
+        }, () => {
+          showSavedFeedback('Template updated');
+          loadConfig();
+        });
+      });
+    });
+
+    templatesContainer.querySelectorAll('.btn-reset-tpl').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const templateId = btn.dataset.id;
+        if (confirm('Reset this template to the default prompt?')) {
+          chrome.runtime.sendMessage({
+            action: 'RESET_TEMPLATE',
+            payload: { templateId }
+          }, () => {
+            showSavedFeedback('Template reset to default');
+            loadConfig();
+          });
+        }
+      });
+    });
+  }
+
+  // ─── General Settings ───
   temperatureSlider.addEventListener('input', () => {
     tempValDisplay.textContent = temperatureSlider.value;
   });
 
-  btnResetPrompt.addEventListener('click', () => {
-    if (confirm('Reset to the default system prompt?')) {
-      customSystemPromptArea.value = DEFAULT_SYSTEM_PROMPT;
-      showSavedFeedback('Prompt reset to default');
-      saveAdvancedSettings();
-    }
-  });
-
-  function saveAdvancedSettings() {
+  function saveGeneralSettings() {
     const payload = {
-      customSystemPrompt: customSystemPromptArea.value,
-      autoCopyOnSummarize: toggleAutocopy.checked,
+      temperature: parseFloat(temperatureSlider.value),
+      maxClipboardEntries: parseInt(maxClipboardEntries.value, 10) || 30,
+      fastMode: toggleFastmode.checked,
       showNotifications: toggleNotifications.checked,
-      fabEnabled: toggleFab.checked,
-      temperature: parseFloat(temperatureSlider.value)
+      fabEnabled: toggleFab.checked
     };
 
     chrome.runtime.sendMessage({
@@ -293,32 +485,41 @@ document.addEventListener('DOMContentLoaded', async () => {
       payload
     }, (res) => {
       if (res && res.success) {
-        showSavedFeedback('✓ Settings saved');
-      } else {
-        showSavedFeedback('Error saving settings', true);
+        showSavedFeedback('Settings saved');
       }
     });
   }
 
-  btnSaveAll.addEventListener('click', saveAdvancedSettings);
+  btnSaveAll.addEventListener('click', saveGeneralSettings);
+  toggleFastmode.addEventListener('change', saveGeneralSettings);
+  toggleNotifications.addEventListener('change', saveGeneralSettings);
+  toggleFab.addEventListener('change', saveGeneralSettings);
+  temperatureSlider.addEventListener('change', saveGeneralSettings);
+  maxClipboardEntries.addEventListener('change', saveGeneralSettings);
 
-  // ─── Load Config ───
-
+  // ─── Config Loader & Boot ───
   function loadConfig() {
     chrome.runtime.sendMessage({ action: 'GET_CONFIG' }, (response) => {
       if (response && response.success && response.config) {
         currentConfig = response.config;
 
-        // Render profiles
         renderProfileList(currentConfig);
+        renderPersonaList(currentConfig);
+        renderTemplates(currentConfig);
 
-        // Populate advanced settings
-        temperatureSlider.value = currentConfig.temperature !== undefined ? currentConfig.temperature : 0.2;
+        const settings = currentConfig.settings || {};
+        temperatureSlider.value = settings.temperature !== undefined ? settings.temperature : 0.2;
         tempValDisplay.textContent = temperatureSlider.value;
-        customSystemPromptArea.value = currentConfig.customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
-        toggleAutocopy.checked = currentConfig.autoCopyOnSummarize !== false;
-        toggleNotifications.checked = currentConfig.showNotifications !== false;
-        toggleFab.checked = currentConfig.fabEnabled !== false;
+        maxClipboardEntries.value = settings.maxClipboardEntries || 30;
+        toggleFastmode.checked = Boolean(settings.fastMode);
+        toggleNotifications.checked = settings.showNotifications !== false;
+        toggleFab.checked = settings.fabEnabled !== false;
+
+        // Route to hash if present (e.g. #personas)
+        if (window.location.hash === '#personas') {
+          const personasSection = document.getElementById('personas');
+          if (personasSection) personasSection.scrollIntoView({ behavior: 'smooth' });
+        }
       }
     });
   }

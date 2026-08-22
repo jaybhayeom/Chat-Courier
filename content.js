@@ -1,12 +1,11 @@
 /**
  * ChatCourier - content.js
- * In-Tab LLM Companion, Draggable Non-Intrusive Floating Orb & Universal Platform Scraper
+ * In-Tab Companion: Floating Draggable Orb, Capsule Drawer Toolbar & Platform Scraper
  */
 
 (function () {
   'use strict';
 
-  // Prevent multiple injections
   if (window.__chatCourierLoaded) return;
   window.__chatCourierLoaded = true;
 
@@ -27,22 +26,13 @@
   let initialBtnY = 0;
   let hasMoved = false;
 
-  // Single unified ChatCourier icon SVG
-  const COURIER_ICON_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="cc-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stop-color="#a5b4fc"/>
-        <stop offset="50%" stop-color="#818cf8"/>
-        <stop offset="100%" stop-color="#c084fc"/>
-      </linearGradient>
-    </defs>
-    <path d="M4 8C4 5.79 5.79 4 8 4H14C17.31 4 20 6.69 20 10C20 12.21 18.21 14 16 14H10C6.69 14 4 11.31 4 8Z" stroke="url(#cc-grad)" stroke-width="2.2" stroke-linecap="round"/>
-    <path d="M20 16C20 18.21 18.21 20 16 20H10C6.69 20 4 17.31 4 14C4 11.79 5.79 10 8 10H14C17.31 10 20 12.69 20 16Z" stroke="url(#cc-grad)" stroke-width="2.2" stroke-linecap="round"/>
-    <circle cx="12" cy="12" r="2.5" fill="#FFFFFF"/>
-    <circle cx="12" cy="12" r="1.5" fill="#818CF8"/>
+  // Monoline SVG icon for ChatCourier (zero gradient, clean strokes)
+  const COURIER_ICON_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 8C4 5.79 5.79 4 8 4H14C17.31 4 20 6.69 20 10C20 12.21 18.21 14 16 14H10C6.69 14 4 11.31 4 8Z"/>
+    <path d="M20 16C20 18.21 18.21 20 16 20H10C6.69 20 4 17.31 4 14C4 11.79 5.79 10 8 10H14C17.31 10 20 12.69 20 16Z"/>
+    <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
   </svg>`;
 
-  // Initialize scraper based on current platform
   function initScraper() {
     if (typeof BaseScraper !== 'undefined' && typeof BaseScraper.detectCurrentPlatform === 'function') {
       currentPlatform = BaseScraper.detectCurrentPlatform();
@@ -72,7 +62,6 @@
     }
   }
 
-  // Get display name for detected platform
   function getPlatformLabel() {
     const labels = {
       chatgpt: 'ChatGPT',
@@ -80,12 +69,11 @@
       gemini: 'Gemini',
       perplexity: 'Perplexity',
       deepseek: 'DeepSeek',
-      generic: 'Chat'
+      generic: 'Web Chat'
     };
-    return labels[currentPlatform] || 'Chat';
+    return labels[currentPlatform] || 'Web Chat';
   }
 
-  // Apply position to button and drawer
   function setButtonPosition(x, y, save = false) {
     const fab = document.getElementById('chatcourier-fab');
     if (!fab) return;
@@ -98,8 +86,6 @@
     currentPosY = Math.max(10, Math.min(maxY, y));
 
     fab.style.transform = `translate3d(${Math.round(currentPosX)}px, ${Math.round(currentPosY)}px, 0)`;
-
-    // Position drawer relative to button
     positionDrawer();
 
     if (save && chrome.storage && chrome.storage.local) {
@@ -109,25 +95,18 @@
     }
   }
 
-  // Align drawer based on button position
   function positionDrawer() {
     const drawer = document.getElementById('chatcourier-drawer');
     if (!drawer) return;
 
-    const drawerWidth = 290;
-    const drawerHeight = 310;
+    const drawerWidth = 260;
+    const drawerHeight = 120;
     const btnSize = 44;
 
-    // Horizontal placement: align left or right of screen
     let drawerX = currentPosX - drawerWidth + btnSize;
-    if (drawerX < 12) {
-      drawerX = Math.max(12, currentPosX);
-    }
-    if (drawerX + drawerWidth > window.innerWidth - 12) {
-      drawerX = window.innerWidth - drawerWidth - 12;
-    }
+    if (drawerX < 12) drawerX = Math.max(12, currentPosX);
+    if (drawerX + drawerWidth > window.innerWidth - 12) drawerX = window.innerWidth - drawerWidth - 12;
 
-    // Vertical placement: open above if near bottom, open below if near top
     let drawerY = currentPosY - drawerHeight - 12;
     if (drawerY < 12 || currentPosY < window.innerHeight / 2) {
       drawerY = currentPosY + btnSize + 12;
@@ -140,19 +119,13 @@
     drawer.style.top = `${Math.round(drawerY)}px`;
   }
 
-  // Update visibility based on config
   function updateUIVisibility() {
     const root = document.getElementById('chatcourier-root');
     if (!root) return;
-
-    if (userConfig && userConfig.fabEnabled === false) {
-      root.style.display = 'none';
-    } else {
-      root.style.display = '';
-    }
+    const fabEnabled = userConfig?.settings?.fabEnabled !== false;
+    root.style.display = fabEnabled ? '' : 'none';
   }
 
-  // Inject UI Components
   function injectUI() {
     if (document.getElementById('chatcourier-root')) return;
     if (!document.body) {
@@ -165,112 +138,68 @@
     }
 
     const platformLabel = getPlatformLabel();
-
     const root = document.createElement('div');
     root.id = 'chatcourier-root';
 
     root.innerHTML = `
       <!-- Draggable Floating Action Orb -->
-      <div class="chatcourier-dock-btn" id="chatcourier-fab" role="button" tabindex="0" title="ChatCourier • ${platformLabel} (Alt+Shift+C)">
+      <div class="chatcourier-dock-btn" id="chatcourier-fab" role="button" tabindex="0" title="ChatCourier (${platformLabel}) - Alt+Shift+C" aria-label="ChatCourier Context Engine">
         <div class="chatcourier-icon-container" id="chatcourier-fab-icon-wrap">
           ${COURIER_ICON_SVG}
         </div>
-        <div class="chatcourier-spark-badge"></div>
-        <div class="chatcourier-tooltip">
-          <span class="tooltip-title">ChatCourier • ${platformLabel}</span>
-          <span class="tooltip-sub">Click to open • Drag to move</span>
-        </div>
       </div>
 
-      <!-- Action Drawer -->
+      <!-- Action Drawer: Restrained Capsule Toolbar -->
       <div class="chatcourier-drawer" id="chatcourier-drawer">
         <div class="chatcourier-drawer-header">
           <div class="chatcourier-brand">
-            <div class="chatcourier-brand-icon">
-              ${COURIER_ICON_SVG}
-            </div>
-            <div class="chatcourier-brand-text">
-              <span class="brand-name">ChatCourier</span>
-              <span class="brand-sub">Context Handoff Engine</span>
-            </div>
+            <span class="brand-name">ChatCourier</span>
+            <span class="chatcourier-platform-badge">${platformLabel}</span>
           </div>
-          <div class="chatcourier-platform-badge">
-            ${platformLabel}
-          </div>
+          <button class="options-link-btn" id="btn-open-settings" title="Settings" aria-label="Open Settings">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
         </div>
 
         <div class="chatcourier-drawer-body">
-          <button class="chatcourier-menu-btn primary" id="btn-quick-handoff" title="Condense session via LLM">
-            <div class="btn-icon">
-              <svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            </div>
-            <div class="btn-text-wrap">
-              <span class="btn-main-text">Summarize for Handoff</span>
-              <span class="btn-sub-text">LLM • 4-Part Digest</span>
-            </div>
-            <span class="btn-shortcut-badge">Alt+Shift+C</span>
+          <!-- Summarize for Handoff -->
+          <button class="drawer-icon-btn primary" id="btn-quick-handoff" title="Summarize for Handoff (Alt+Shift+C)" aria-label="Summarize for Handoff">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           </button>
 
-          <button class="chatcourier-menu-btn" id="btn-copy-raw">
-            <div class="btn-icon">
-              <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-            </div>
-            <div class="btn-text-wrap">
-              <span class="btn-main-text">Quick Extract & Copy Raw</span>
-              <span class="btn-sub-text">Clean markdown without UI noise</span>
-            </div>
+          <!-- Download Transcript -->
+          <button class="drawer-icon-btn" id="btn-download-md" title="Download Transcript (.md)" aria-label="Download Transcript">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
 
-          <button class="chatcourier-menu-btn" id="btn-download-md">
-            <div class="btn-icon">
-              <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-            </div>
-            <div class="btn-text-wrap">
-              <span class="btn-main-text">Download Transcript (.md)</span>
-              <span class="btn-sub-text">Save full session locally</span>
-            </div>
-          </button>
-
-          <button class="chatcourier-menu-btn" id="btn-view-digest">
-            <div class="btn-icon">
-              <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
-            </div>
-            <div class="btn-text-wrap">
-              <span class="btn-main-text">Preview Context Digest</span>
-              <span class="btn-sub-text">Inspect synthesized output</span>
-            </div>
+          <!-- Preview Context Digest -->
+          <button class="drawer-icon-btn" id="btn-view-digest" title="Preview Digest" aria-label="Preview Digest">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
 
         <div class="chatcourier-drawer-footer">
-          <div class="token-meter" id="drawer-stats">
-            <span class="dot live-pulse"></span>
-            <span id="drawer-stats-text">Ready to extract</span>
-          </div>
-          <button class="options-link-btn" id="btn-open-settings" title="ChatCourier Settings">
-            ⚙
-          </button>
+          <span id="drawer-stats-text" class="drawer-stats">Ready to extract</span>
         </div>
       </div>
 
-      <!-- Toast Feedback -->
+      <!-- Toast Feedback (Zero Emoji) -->
       <div class="chatcourier-toast" id="chatcourier-toast">
-        <span class="toast-icon" id="chatcourier-toast-icon">✨</span>
-        <span id="chatcourier-toast-msg">Copied context to clipboard!</span>
+        <span class="toast-icon-wrap" id="chatcourier-toast-icon">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+        </span>
+        <span id="chatcourier-toast-msg">Ready</span>
       </div>
 
-      <!-- Full Modal Preview -->
+      <!-- Modal Preview -->
       <div class="chatcourier-modal-backdrop" id="chatcourier-modal">
         <div class="chatcourier-modal">
           <div class="chatcourier-modal-header">
-            <div class="chatcourier-modal-title">
-              <div class="modal-icon">${COURIER_ICON_SVG}</div>
-              ChatCourier Context Digest Preview
-            </div>
+            <div class="chatcourier-modal-title">Context Digest Preview</div>
             <button class="chatcourier-btn chatcourier-btn-secondary" id="chatcourier-modal-close" style="padding: 4px 10px;">✕</button>
           </div>
           <div class="chatcourier-modal-body" id="chatcourier-modal-content">
-            Generating digest...
+            Extracting session content...
           </div>
           <div class="chatcourier-modal-footer">
             <button class="chatcourier-btn chatcourier-btn-secondary" id="chatcourier-modal-copy">Copy to Clipboard</button>
@@ -282,7 +211,6 @@
 
     document.body.appendChild(root);
 
-    // Restore saved position or default to bottom-right
     if (chrome.storage && chrome.storage.local) {
       chrome.storage.local.get(['chatcourier_pos'], (res) => {
         if (res && res.chatcourier_pos && typeof res.chatcourier_pos.x === 'number') {
@@ -298,16 +226,21 @@
     setupEvents(root);
   }
 
-  // Toast Helper
-  function showToast(message, type = 'success') {
+  function showToast(message, type = 'info') {
     const toast = document.getElementById('chatcourier-toast');
     const msg = document.getElementById('chatcourier-toast-msg');
-    const icon = document.getElementById('chatcourier-toast-icon');
+    const iconWrap = document.getElementById('chatcourier-toast-icon');
     if (!toast || !msg) return;
 
     msg.textContent = message;
-    if (icon) {
-      icon.textContent = type === 'success' ? '🚀' : type === 'error' ? '⚠️' : '✨';
+    if (iconWrap) {
+      if (type === 'success') {
+        iconWrap.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`;
+      } else if (type === 'error') {
+        iconWrap.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+      } else {
+        iconWrap.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+      }
     }
     toast.className = `chatcourier-toast visible toast-${type}`;
 
@@ -316,7 +249,6 @@
     }, 3500);
   }
 
-  // FAB Animation States
   function setFabState(state) {
     const fab = document.getElementById('chatcourier-fab');
     const iconWrap = document.getElementById('chatcourier-fab-icon-wrap');
@@ -327,22 +259,21 @@
     if (state === 'loading') {
       fab.classList.add('loading');
       iconWrap.innerHTML = `
-        <svg class="chatcourier-spinner-svg" viewBox="0 0 24 24" width="22" height="22">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" fill="none" stroke-dasharray="38" stroke-dashoffset="12"/>
+        <svg class="chatcourier-spinner-svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9" stroke-dasharray="38" stroke-dashoffset="12"/>
         </svg>`;
     } else if (state === 'success') {
       fab.classList.add('success');
       iconWrap.innerHTML = `
-        <svg class="chatcourier-check-svg" viewBox="0 0 24 24" width="22" height="22">
-          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"/>
         </svg>`;
-      setTimeout(() => setFabState('default'), 2400);
+      setTimeout(() => setFabState('default'), 2000);
     } else {
       iconWrap.innerHTML = COURIER_ICON_SVG;
     }
   }
 
-  // File Download Helper
   function downloadText(filename, text) {
     const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -355,17 +286,14 @@
     URL.revokeObjectURL(url);
   }
 
-  // Core Scrape Flow
-  async function performExtraction() {
+  async function performExtraction(fastMode = false) {
     if (!activeScraper) initScraper();
     try {
-      cachedSession = await activeScraper.scrape();
-      
+      cachedSession = await activeScraper.scrape(fastMode);
       const statsText = document.getElementById('drawer-stats-text');
       if (statsText && cachedSession.stats) {
         statsText.textContent = `${cachedSession.stats.messageCount} turns • ~${cachedSession.stats.approxTokenCount || 0} tokens`;
       }
-
       return cachedSession;
     } catch (err) {
       console.error('[ChatCourier] Scraping error:', err);
@@ -374,44 +302,35 @@
     }
   }
 
-  // Core Summarization Flow
   async function performSummarization() {
     if (isProcessing) return;
     isProcessing = true;
     setFabState('loading');
+    showToast('Synthesizing Context Digest...', 'info');
 
     try {
-      const session = await performExtraction();
+      const fastMode = Boolean(userConfig?.settings?.fastMode);
+      const session = await performExtraction(fastMode);
       if (!session || !session.messages || session.messages.length === 0) {
-        showToast('No chat messages detected on screen to summarize.', 'error');
+        showToast('No chat messages detected on screen.', 'error');
         setFabState('default');
         return;
       }
 
-      showToast('Synthesizing LLM Context Digest...', 'info');
-
       const response = await new Promise((resolve) => {
         chrome.runtime.sendMessage({
-          action: 'SUMMARIZE',
+          action: 'RUN_TEMPLATE',
           payload: {
-            transcript: session.rawTranscript
+            templateId: 'digest',
+            userContent: session.rawTranscript
           }
         }, resolve);
       });
 
       if (response && response.success) {
         cachedDigest = response.summary;
-
-        // Bug 1 fix: respect autoCopyOnSummarize setting
-        const shouldCopy = userConfig?.autoCopyOnSummarize !== false;
-        if (shouldCopy) {
-          await navigator.clipboard.writeText(cachedDigest);
-          setFabState('success');
-          showToast('🚀 Handoff Digest synthesized & copied to clipboard!', 'success');
-        } else {
-          setFabState('success');
-          showToast('🚀 Handoff Digest synthesized! Use Preview to view.', 'success');
-        }
+        setFabState('success');
+        showToast('Handoff digest ready! Open Preview to view and copy.', 'success');
       } else {
         throw new Error(response?.error || 'Summarization failed');
       }
@@ -424,7 +343,6 @@
     }
   }
 
-  // Setup Event Listeners
   function setupEvents(root) {
     const fab = root.querySelector('#chatcourier-fab');
     const drawer = root.querySelector('#chatcourier-drawer');
@@ -435,9 +353,8 @@
     const modalDownload = root.querySelector('#chatcourier-modal-download');
     const btnOpenSettings = root.querySelector('#btn-open-settings');
 
-    // Drag-and-Drop Handler on FAB
     function onPointerDown(e) {
-      if (e.button !== 0) return; // Left click only
+      if (e.button !== 0) return;
       isDragging = true;
       hasMoved = false;
       dragStartX = e.clientX;
@@ -471,7 +388,6 @@
       if (hasMoved) {
         setButtonPosition(currentPosX, currentPosY, true);
       } else {
-        // Simple Click: Toggle Drawer
         drawer.classList.toggle('open');
         if (drawer.classList.contains('open')) {
           positionDrawer();
@@ -482,35 +398,17 @@
 
     fab.addEventListener('pointerdown', onPointerDown);
 
-    // Close drawer on click outside
     document.addEventListener('pointerdown', (e) => {
       if (!fab.contains(e.target) && !drawer.contains(e.target)) {
         drawer.classList.remove('open');
       }
     });
 
-    // Action: Summarize for Handoff
     root.querySelector('#btn-quick-handoff').addEventListener('click', async () => {
       drawer.classList.remove('open');
       await performSummarization();
     });
 
-    // Action: Quick Extract & Copy Raw
-    root.querySelector('#btn-copy-raw').addEventListener('click', async () => {
-      drawer.classList.remove('open');
-      setFabState('loading');
-      try {
-        const session = await performExtraction();
-        await navigator.clipboard.writeText(session.rawTranscript);
-        setFabState('success');
-        showToast(`Copied ${session.stats.messageCount} messages to clipboard!`, 'success');
-      } catch (err) {
-        setFabState('default');
-        showToast(`Copy failed: ${err.message}`, 'error');
-      }
-    });
-
-    // Action: Download Markdown
     root.querySelector('#btn-download-md').addEventListener('click', async () => {
       drawer.classList.remove('open');
       setFabState('loading');
@@ -519,14 +417,13 @@
         const safeTitle = (session.title || 'chat-transcript').replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
         downloadText(`${safeTitle}_chatcourier.md`, session.rawTranscript);
         setFabState('success');
-        showToast('Transcript downloaded!', 'success');
+        showToast('Transcript downloaded', 'success');
       } catch (err) {
         setFabState('default');
         showToast(`Download failed: ${err.message}`, 'error');
       }
     });
 
-    // Action: Preview Context Digest Modal
     root.querySelector('#btn-view-digest').addEventListener('click', async () => {
       drawer.classList.remove('open');
       modal.classList.add('open');
@@ -540,7 +437,6 @@
       }
     });
 
-    // Open options page cleanly via background
     if (btnOpenSettings) {
       btnOpenSettings.addEventListener('click', () => {
         chrome.runtime.sendMessage({ action: 'OPEN_OPTIONS' });
@@ -553,51 +449,72 @@
 
     modalCopy.addEventListener('click', async () => {
       const text = modalContent.textContent;
-      await navigator.clipboard.writeText(text);
-      showToast('Digest copied to clipboard!', 'success');
+      try {
+        await navigator.clipboard.writeText(text);
+        chrome.runtime.sendMessage({
+          action: 'ADD_CLIPBOARD_ITEM',
+          payload: { kind: 'digest', fullText: text, sourcePlatform: currentPlatform }
+        });
+        showToast('Digest copied to clipboard', 'success');
+      } catch (err) {
+        showToast('Copy failed', 'error');
+      }
     });
 
     modalDownload.addEventListener('click', () => {
       const text = modalContent.textContent;
       const safeTitle = (cachedSession?.title || 'context-digest').replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
       downloadText(`${safeTitle}_handoff_digest.md`, text);
-      showToast('Digest downloaded!', 'success');
+      showToast('Digest downloaded', 'success');
     });
 
-    // Global Keyboard Shortcuts
     window.addEventListener('keydown', async (e) => {
       if (e.altKey && e.shiftKey && e.code === 'KeyC') {
         e.preventDefault();
         await performSummarization();
       } else if (e.key === 'Escape') {
-        if (drawer.classList.contains('open')) {
-          drawer.classList.remove('open');
-        }
-        if (modal.classList.contains('open')) {
-          modal.classList.remove('open');
-        }
+        if (drawer.classList.contains('open')) drawer.classList.remove('open');
+        if (modal.classList.contains('open')) modal.classList.remove('open');
       }
     });
 
-    // Reposition on window resize
     window.addEventListener('resize', () => {
       setButtonPosition(currentPosX, currentPosY, false);
     }, { passive: true });
   }
 
-  // Listen for messages from Popup & Background
+  // Listen for Tab Messages from Popup / Background
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'EXTRACT_SESSION_REQUEST') {
-      performExtraction().then((session) => {
+    const { action, payload } = message || {};
+
+    if (action === 'EXTRACT_SESSION_REQUEST') {
+      const fastMode = Boolean(payload?.fastMode);
+      performExtraction(fastMode).then((session) => {
         sendResponse({ success: true, session, platform: currentPlatform });
       }).catch(err => {
         sendResponse({ success: false, error: err.message });
       });
-      return true; // Async response
+      return true;
+    }
+
+    if (action === 'GET_COMPOSER_TEXT') {
+      if (!activeScraper) initScraper();
+      const text = activeScraper.getComposerText();
+      sendResponse({ success: true, text });
+      return false;
+    }
+
+    if (action === 'APPLY_PERSONA_TO_TAB') {
+      if (!activeScraper) initScraper();
+      const instruction = payload?.instructionBlock || '';
+      const ok = activeScraper.setComposerText(instruction);
+      if (ok) showToast('Persona instruction inserted into composer', 'success');
+      sendResponse({ success: ok });
+      return false;
     }
   });
 
-  // Listen for real-time config changes from Options / Storage
+  // Config Sync
   if (chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener(() => {
       chrome.runtime.sendMessage({ action: 'GET_CONFIG' }, (res) => {
@@ -609,7 +526,6 @@
     });
   }
 
-  // Initialize
   initScraper();
   chrome.runtime.sendMessage({ action: 'GET_CONFIG' }, (res) => {
     if (res && res.config) {
