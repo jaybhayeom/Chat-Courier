@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChatCourier - LLM Context Handoff</title>
+  <title>ChatCourier</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -11,108 +11,256 @@
     <!-- Header -->
     <header class="header">
       <div class="brand">
-        <div class="brand-icon-wrap">
-          <svg class="brand-icon" viewBox="0 0 24 24">
-            <defs>
-              <linearGradient id="pop-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#a5b4fc"/>
-                <stop offset="100%" stop-color="#c084fc"/>
-              </linearGradient>
-            </defs>
-            <path d="M4 8C4 5.79 5.79 4 8 4H14C17.31 4 20 6.69 20 10C20 12.21 18.21 14 16 14H10C6.69 14 4 11.31 4 8Z" stroke="url(#pop-grad)" stroke-width="2.2" stroke-linecap="round"/>
-            <path d="M20 16C20 18.21 18.21 20 16 20H10C6.69 20 4 17.31 4 14C4 11.79 5.79 10 8 10H14C17.31 10 20 12.69 20 16Z" stroke="url(#pop-grad)" stroke-width="2.2" stroke-linecap="round"/>
-            <circle cx="12" cy="12" r="2" fill="#ffffff"/>
-          </svg>
-        </div>
+        <svg class="brand-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 8C4 5.79 5.79 4 8 4H14C17.31 4 20 6.69 20 10C20 12.21 18.21 14 16 14H10C6.69 14 4 11.31 4 8Z"/>
+          <path d="M20 16C20 18.21 18.21 20 16 20H10C6.69 20 4 17.31 4 14C4 11.79 5.79 10 8 10H14C17.31 10 20 12.69 20 16Z"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+        </svg>
         <span class="brand-title">ChatCourier</span>
       </div>
       <div class="header-actions">
-        <div id="status-indicator" class="status-indicator" title="Checking API Status">
+        <div id="status-indicator" class="status-indicator" title="API Status">
           <span class="status-dot"></span>
           <span id="status-text" class="status-text">Checking...</span>
         </div>
-        <button id="btn-open-options" class="icon-btn" title="Open Settings">
-          <svg viewBox="0 0 24 24" width="16" height="16">
-            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+        <button id="btn-open-options" class="icon-btn" title="Open Settings" aria-label="Open Settings">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
         </button>
       </div>
     </header>
 
-    <!-- Platform & Context Detection Card -->
-    <div class="card platform-card" id="main-platform-card">
-      <div class="card-row">
-        <div class="platform-meta-wrap">
-          <div class="platform-text-wrap">
-            <span class="label">Active Platform</span>
-            <span id="detected-platform-badge" class="platform-badge">Detecting...</span>
-          </div>
-        </div>
-        <div class="active-profile-tag" id="active-profile-tag" title="Active connection profile">
-          <span id="active-profile-name">—</span>
-        </div>
+    <!-- Platform, Profile & Persona Bar -->
+    <div class="meta-bar">
+      <div class="meta-left">
+        <span id="detected-platform-badge" class="platform-chip">Detecting...</span>
+        <span id="active-profile-tag" class="profile-chip" title="Active Connection Profile">—</span>
       </div>
-
-      <div class="stats-row" id="stats-container">
-        <div class="stat-box">
-          <span class="stat-val" id="stat-messages">--</span>
-          <span class="stat-lbl">Messages</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-val" id="stat-words">--</span>
-          <span class="stat-lbl">Words</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-val" id="stat-tokens">--</span>
-          <span class="stat-lbl">Tokens</span>
-        </div>
+      <div class="persona-chip-wrap">
+        <select id="persona-select" class="persona-select" title="Active Persona">
+          <option value="">Standard Mode</option>
+        </select>
+        <a href="#" id="link-manage-personas" class="text-link" title="Manage Personas in Settings">Manage</a>
       </div>
     </div>
 
-    <!-- Action Buttons -->
-    <div class="actions-group">
-      <button id="btn-summarize" class="btn btn-primary">
-        <span class="btn-icon-wrap" id="btn-summarize-icon">
-          <svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        </span>
-        <span id="btn-summarize-label">Summarize for Handoff</span>
+    <!-- Metrics Row -->
+    <div class="metrics-row" id="metrics-container">
+      <span class="metric-item"><strong id="stat-messages">--</strong> turns</span>
+      <span class="metric-divider">•</span>
+      <span class="metric-item"><strong id="stat-words">--</strong> words</span>
+      <span class="metric-divider">•</span>
+      <span class="metric-item"><strong id="stat-tokens">--</strong> tokens</span>
+    </div>
+
+    <!-- Completeness Warning Banner (Dynamic) -->
+    <div id="completeness-warning" class="completeness-banner hidden">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="completeness-warning-text">Partial transcript captured.</span>
+    </div>
+
+    <!-- ============================================================
+         Capsule Icon-Only Toolbar (7 exact actions)
+         ============================================================ -->
+    <nav class="capsule-toolbar" aria-label="Action Toolbar">
+      <!-- 1. Summarize for Handoff -->
+      <button id="btn-summarize" class="toolbar-btn primary" title="Summarize for Handoff (Alt+Shift+C)" aria-label="Summarize for Handoff">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
       </button>
 
-      <div class="dual-btn-row">
-        <button id="btn-extract-raw" class="btn btn-secondary">
-          <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-          Copy Raw
+      <!-- 2. Prompt Rewriter -->
+      <button id="btn-rewriter" class="toolbar-btn" title="Prompt Rewriter" aria-label="Prompt Rewriter">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+      </button>
+
+      <!-- 3. Download Transcript -->
+      <button id="btn-download" class="toolbar-btn" title="Download Transcript (.md)" aria-label="Download Transcript">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>
+
+      <!-- 4. Preview Context -->
+      <button id="btn-preview" class="toolbar-btn" title="Preview Context / Digest" aria-label="Preview Context">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+
+      <!-- 5. Clipboard History -->
+      <button id="btn-history" class="toolbar-btn" title="Clipboard History" aria-label="Clipboard History">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </button>
+
+      <!-- 6. Thinking Mode Toggle & Depth -->
+      <div class="toolbar-toggle-wrapper">
+        <button id="btn-thinking" class="toolbar-btn toggle-btn" title="Thinking Mode (Click to toggle, arrow for depth)" aria-label="Thinking Mode">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18h6"/>
+            <path d="M10 22h4"/>
+            <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/>
+          </svg>
+          <span class="active-dot"></span>
         </button>
-        <button id="btn-download" class="btn btn-secondary">
-          <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-          Download
+        <button id="btn-thinking-caret" class="caret-btn" title="Select Thinking Depth" aria-label="Select Thinking Depth">
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
       </div>
-    </div>
 
-    <!-- Skeleton Loading Animation State -->
-    <div id="skeleton-loader" class="skeleton-wrap hidden">
-      <div class="skeleton-line full"></div>
-      <div class="skeleton-line two-thirds"></div>
-      <div class="skeleton-line full"></div>
-      <div class="skeleton-line half"></div>
-    </div>
+      <!-- 7. Auto-Suggest Next Steps Toggle -->
+      <button id="btn-autosuggest" class="toolbar-btn toggle-btn" title="Auto-Suggested Next Steps (Toggle)" aria-label="Auto-Suggested Next Steps">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <span class="active-dot"></span>
+      </button>
+    </nav>
 
-    <!-- Preview Accordion & Output -->
-    <div id="preview-accordion" class="preview-section hidden">
-      <div class="preview-header" id="preview-toggle">
-        <span class="preview-title">Handoff Digest Preview</span>
-        <span id="preview-chevron" class="chevron">▼</span>
+    <!-- Thinking Depth Popover (Hidden by default) -->
+    <div id="thinking-depth-popover" class="depth-popover hidden">
+      <div class="depth-title">Thinking Depth</div>
+      <div class="depth-options">
+        <button class="depth-opt" data-depth="quick">Quick Check</button>
+        <button class="depth-opt active" data-depth="standard">Standard</button>
+        <button class="depth-opt" data-depth="deep">Deep Review</button>
       </div>
-      <div id="preview-body" class="preview-body">
-        <pre id="preview-content"></pre>
-      </div>
     </div>
 
-    <!-- Toast / Notification Bar -->
-    <div id="feedback-bar" class="feedback-bar">
+    <!-- ============================================================
+         Main Output & Preview Card
+         ============================================================ -->
+    <section id="view-main" class="view-panel">
+      <!-- Skeleton Loader -->
+      <div id="skeleton-loader" class="skeleton-wrap hidden">
+        <div class="skeleton-line full"></div>
+        <div class="skeleton-line two-thirds"></div>
+        <div class="skeleton-line full"></div>
+        <div class="skeleton-line half"></div>
+      </div>
+
+      <!-- Result Card -->
+      <div id="output-card" class="output-card hidden">
+        <div class="output-card-header">
+          <span id="output-card-title" class="output-title">Context Handoff Digest</span>
+          <div class="output-actions">
+            <button id="btn-copy-digest" class="icon-btn-action" title="Copy to Clipboard (Fresh Click)" aria-label="Copy to Clipboard">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <span>Copy</span>
+            </button>
+            <button id="btn-download-digest" class="icon-btn-action" title="Download Digest (.md)" aria-label="Download Digest">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <pre id="output-content" class="output-content"></pre>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Dedicated View: Prompt Rewriter
+         ============================================================ -->
+    <section id="view-rewriter" class="view-panel hidden">
+      <div class="view-sub-header">
+        <button id="btn-back-rewriter" class="back-btn" title="Back to Toolbar" aria-label="Back">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="view-sub-title">Prompt Rewriter</span>
+      </div>
+
+      <!-- Pill Input Card -->
+      <div class="pill-input-card">
+        <div class="pill-leading-icon" title="Rewrite Engine Active">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <textarea id="rewriter-input" class="pill-textarea" rows="3" placeholder="Type or paste your prompt..."></textarea>
+        <button id="btn-submit-rewriter" class="pill-submit-btn" title="Rewrite Prompt" aria-label="Submit Rewrite">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Rewriter Skeleton -->
+      <div id="rewriter-skeleton" class="skeleton-wrap hidden">
+        <div class="skeleton-line full"></div>
+        <div class="skeleton-line two-thirds"></div>
+        <div class="skeleton-line full"></div>
+      </div>
+
+      <!-- Rewriter Output Card -->
+      <div id="rewriter-output-card" class="output-card hidden">
+        <div class="output-card-header">
+          <span class="output-title">Enhanced Prompt</span>
+          <div class="output-actions">
+            <button id="btn-retry-rewrite" class="icon-btn-action" title="Retry / Re-roll" aria-label="Retry Rewrite">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"/>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+              </svg>
+              <span>Retry</span>
+            </button>
+            <button id="btn-copy-rewrite" class="icon-btn-action" title="Copy to Clipboard" aria-label="Copy Rewrite">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <span>Copy</span>
+            </button>
+            <button id="btn-download-rewrite" class="icon-btn-action" title="Download as .md" aria-label="Download Rewrite">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <pre id="rewriter-output-content" class="output-content"></pre>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Dedicated View: Clipboard History
+         ============================================================ -->
+    <section id="view-history" class="view-panel hidden">
+      <div class="view-sub-header">
+        <button id="btn-back-history" class="back-btn" title="Back to Toolbar" aria-label="Back">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="view-sub-title">ChatCourier Clipboard History</span>
+        <button id="btn-clear-history" class="text-action-btn" title="Clear History">Clear</button>
+      </div>
+      <p class="history-note">Local log of text generated and copied by ChatCourier.</p>
+      <div id="history-list" class="history-list">
+        <!-- Dynamically rendered rows -->
+      </div>
+    </section>
+
+    <!-- Feedback Toast Bar -->
+    <footer id="feedback-bar" class="feedback-bar">
       <span id="feedback-text">Ready</span>
-    </div>
+    </footer>
   </div>
 
   <script src="popup.js"></script>
