@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ChatCourier - Seamless LLM Context Handoff Engine",
   "short_name": "ChatCourier",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "Extracts, normalizes, and condenses multi-platform AI chat sessions (ChatGPT, Claude, Gemini, Perplexity, DeepSeek) into structured context handoff digests via any OpenAI-compatible API.",
   "icons": {
     "16": "icons/icon16.png",

@@ -1,7 +1,85 @@
 /**
  * ChatCourier - background.js
- * Manifest V3 Background Service Worker & OpenAI-Compatible API Orchestration Engine
+ * Manifest V3 Background Service Worker & Unified Template Execution Engine
  */
+
+const DEFAULT_TEMPLATES = [
+  {
+    id: 'digest',
+    label: 'Context Handoff Digest',
+    defaultPrompt: `You are ChatCourier, an elite LLM Context Handoff Engine.
+Your mission is to ingest a conversation transcript from another AI platform (ChatGPT, Claude, Gemini, Perplexity, DeepSeek) and synthesize a high-density, structured Context Handoff Digest. This digest will be passed directly to another frontier LLM as prompt context to seamlessly continue work without loss of fidelity.
+
+You must format your response with the following 4 structured sections in clean GitHub-flavored Markdown:
+
+# Context Handoff Digest: [Topic / Project Name]
+> **Source Platform**: [Platform Name] | **Session Date**: [Date] | **Turns Analyzed**: [Turn Count]
+
+## 1. Primary Goal & High-Level Context
+- Concise explanation of the core problem, objective, user intent, and high-level architecture.
+
+## 2. Key Decisions Made & Architectural Constraints
+- Technical choices agreed upon (libraries, algorithms, conventions, design patterns).
+- Hard constraints, non-negotiable requirements, or rejected alternatives with reasons.
+
+## 3. Active Code, Schemas & Working Data Artifacts
+- Output all working code snippets, schemas, API contracts, configs, or data structures established in the session.
+- Preserve exact syntax, language tags, and symbol names.
+
+## 4. Pending Tasks & Immediate Next Steps
+- Concrete checklist of remaining tasks, unfinished logic, edge cases to handle, and direct prompts for the receiving LLM to execute next.
+
+Maintain high technical density. Do not include conversational filler.`,
+    userOverride: null
+  },
+  {
+    id: 'rewriter',
+    label: 'Prompt Rewriter',
+    defaultPrompt: `You are a prompt-engineering assistant. Take the user's rough draft prompt and rewrite it into a clearer, more effective version. Preserve the original intent exactly. Add: (1) explicit rules/constraints implied but unstated in the draft, (2) a step-by-step task breakdown where the task has multiple parts, (3) any missing context the model would need to succeed. Do not answer the prompt — only rewrite it. Return only the rewritten prompt in clean Markdown, nothing else.`,
+    userOverride: null
+  },
+  {
+    id: 'thinking_quick',
+    label: 'Thinking Mode: Quick Check',
+    defaultPrompt: `[Thinking Mode: Quick Check]\nBriefly double-check your answer for obvious errors, invalid assumptions, or omitted constraints before responding.\n`,
+    userOverride: null
+  },
+  {
+    id: 'thinking_standard',
+    label: 'Thinking Mode: Standard Review',
+    defaultPrompt: `[Thinking Mode: Standard Review]\nWork through this sequentially. Do a full top-to-bottom review of the relevant context. Explicitly check for errors, edge cases, and architectural consistency before concluding.\n`,
+    userOverride: null
+  },
+  {
+    id: 'thinking_deep',
+    label: 'Thinking Mode: Deep Multi-Pass Audit',
+    defaultPrompt: `[Thinking Mode: Deep Multi-Pass Audit]\nExecute a thorough multi-pass review:\n1. Deconstruct the problem and identify all implicit boundary conditions.\n2. Formulate reasoning hypotheses and test against non-obvious failure modes.\n3. Explicitly audit against potential regressions and anti-patterns.\n4. Present the verified, high-density solution.\n`,
+    userOverride: null
+  },
+  {
+    id: 'auto_suggest',
+    label: 'Auto-Suggested Next Steps',
+    defaultPrompt: `\n\n---\n### Suggested Next Steps to Consider (AI-generated, not part of the session record)\nBased on the session transcript above, here are 3 high-impact follow-up ideas or architectural directions to consider exploring next:\n1. [Suggestion 1]\n2. [Suggestion 2]\n3. [Suggestion 3]`,
+    userOverride: null
+  }
+];
+
+const DEFAULT_PERSONAS = [
+  {
+    id: 'persona_architect',
+    name: 'Senior Software Architect',
+    description: 'Systems-level thinker focusing on clean boundaries, defensive handling, and scalability.',
+    instructionBlock: 'You are a Principal Software Architect. Prioritize modularity, type safety, clear architectural contracts, and defensive error handling.',
+    preferredPlatform: 'any'
+  },
+  {
+    id: 'persona_concise',
+    name: 'Concise Code Reviewer',
+    description: 'Zero conversational filler, diff-first responses focusing strictly on correctness.',
+    instructionBlock: 'You are a Senior Code Reviewer. Provide minimal commentary, zero conversational filler, and direct working code solutions with precise diffs.',
+    preferredPlatform: 'any'
+  }
+];
 
 const DEFAULT_CONFIG = {
   profiles: [
@@ -14,65 +92,84 @@ const DEFAULT_CONFIG = {
     }
   ],
   activeProfileId: 'default',
-  autoCopyOnSummarize: true,
-  showNotifications: true,
-  fabEnabled: true,
-  temperature: 0.2,
-  maxTokens: 4096,
-  customSystemPrompt: `You are ChatCourier, an elite LLM Context Handoff Engine.
-Your mission is to ingest a conversation transcript from another AI platform (ChatGPT, Claude, Gemini, Perplexity, DeepSeek) and synthesize a high-density, structured Context Handoff Digest. This digest will be passed directly to another frontier LLM as prompt context to seamlessly continue work without loss of fidelity.
-
-You must format your response with the following 4 structured sections in clean GitHub-flavored Markdown:
-
-# 🚀 Context Handoff Digest: [Topic / Project Name]
-> **Source Platform**: [Platform Name] | **Session Date**: [Date] | **Turns Analyzed**: [Turn Count]
-
-## 1. 🎯 Primary Goal & High-Level Context
-- Concise explanation of the core problem, objective, user intent, and high-level architecture.
-
-## 2. ⚡ Key Decisions Made & Architectural Constraints
-- Technical choices agreed upon (libraries, algorithms, conventions, design patterns).
-- Hard constraints, non-negotiable requirements, or rejected alternatives with reasons.
-
-## 3. 📦 Active Code, Schemas & Working Data Artifacts
-- Output all working code snippets, schemas, API contracts, configs, or data structures established in the session.
-- Preserve exact syntax, language tags, and symbol names.
-
-## 4. 📋 Pending Tasks & Immediate Next Steps
-- Concrete checklist of remaining tasks, unfinished logic, edge cases to handle, and direct prompts for the receiving LLM to execute next.
-
-Maintain high technical density. Do not include conversational filler.`
+  personas: DEFAULT_PERSONAS,
+  activePersonaId: null,
+  templates: DEFAULT_TEMPLATES,
+  clipboardHistory: [],
+  settings: {
+    autoCopyOnSummarize: true,
+    showNotifications: true,
+    fabEnabled: true,
+    fastMode: false,
+    maxClipboardEntries: 30,
+    thinkingModeEnabled: false,
+    thinkingModeDepth: 'standard',
+    autoSuggestEnabled: false,
+    temperature: 0.2,
+    maxTokens: 4096
+  }
 };
 
 // Initialize default storage on install or startup
 chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log('[ChatCourier] Extension installed/updated:', details.reason);
+  console.log('[ChatCourier] Installed/updated:', details.reason);
   try {
     const stored = await getStorageData();
 
-    // Migrate legacy fields if present
-    if (stored.groqApiKey && !stored.profiles) {
-      const migratedProfile = {
-        id: 'default',
-        name: 'Groq — Fast',
-        endpoint: 'https://api.groq.com/openai/v1',
-        modelId: stored.defaultModel || 'llama-3.3-70b-versatile',
-        apiKey: stored.groqApiKey
-      };
-      stored.profiles = [migratedProfile];
-      stored.activeProfileId = 'default';
-      // Clean up legacy keys
-      delete stored.groqApiKey;
-      delete stored.defaultModel;
-      delete stored.outputFormat;
-      delete stored.iconTheme;
-      delete stored.buttonPosition;
+    // Migrate flat settings to nested settings object if present
+    const settings = {
+      ...DEFAULT_CONFIG.settings,
+      ...(stored.settings || {})
+    };
+
+    if (stored.autoCopyOnSummarize !== undefined) settings.autoCopyOnSummarize = stored.autoCopyOnSummarize;
+    if (stored.showNotifications !== undefined) settings.showNotifications = stored.showNotifications;
+    if (stored.fabEnabled !== undefined) settings.fabEnabled = stored.fabEnabled;
+    if (stored.temperature !== undefined) settings.temperature = stored.temperature;
+    if (stored.maxTokens !== undefined) settings.maxTokens = stored.maxTokens;
+
+    // Migrate templates
+    let templates = stored.templates || DEFAULT_TEMPLATES;
+    // Ensure all default templates exist in templates list
+    DEFAULT_TEMPLATES.forEach(dt => {
+      if (!templates.some(t => t.id === dt.id)) {
+        templates.push(dt);
+      }
+    });
+
+    // Migrate customSystemPrompt into digest template if present
+    if (stored.customSystemPrompt) {
+      const digestTpl = templates.find(t => t.id === 'digest');
+      if (digestTpl && !digestTpl.userOverride) {
+        digestTpl.userOverride = stored.customSystemPrompt;
+      }
     }
 
-    const initial = { ...DEFAULT_CONFIG, ...stored };
-    await setStorageData(initial);
+    const merged = {
+      profiles: stored.profiles || DEFAULT_CONFIG.profiles,
+      activeProfileId: stored.activeProfileId || 'default',
+      personas: stored.personas || DEFAULT_PERSONAS,
+      activePersonaId: stored.activePersonaId || null,
+      templates,
+      clipboardHistory: stored.clipboardHistory || [],
+      settings
+    };
 
-    // Clear any data from chrome.storage.sync (migration from old version)
+    // Clean up legacy flat keys
+    delete stored.groqApiKey;
+    delete stored.defaultModel;
+    delete stored.outputFormat;
+    delete stored.iconTheme;
+    delete stored.buttonPosition;
+    delete stored.customSystemPrompt;
+    delete stored.autoCopyOnSummarize;
+    delete stored.showNotifications;
+    delete stored.fabEnabled;
+    delete stored.temperature;
+    delete stored.maxTokens;
+
+    await setStorageData(merged);
+
     try {
       chrome.storage.sync.clear();
     } catch (_) {}
@@ -80,14 +177,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     console.error('[ChatCourier] Error initializing storage:', e);
   }
 
-  // Set default badge state
   try {
     chrome.action.setBadgeText({ text: '' });
   } catch (_) {}
 });
 
 /**
- * Storage helpers — chrome.storage.local ONLY (never sync credentials)
+ * Storage helpers — chrome.storage.local ONLY
  */
 async function getStorageData() {
   return new Promise((resolve) => {
@@ -115,6 +211,18 @@ function resolveActiveProfile(config) {
 }
 
 /**
+ * Resolves effective prompt for a given template ID
+ */
+function resolveTemplatePrompt(templates, templateId) {
+  const tpl = (templates || DEFAULT_TEMPLATES).find(t => t.id === templateId);
+  if (!tpl) {
+    const fallback = DEFAULT_TEMPLATES.find(t => t.id === templateId);
+    return fallback ? (fallback.userOverride || fallback.defaultPrompt) : '';
+  }
+  return tpl.userOverride || tpl.defaultPrompt;
+}
+
+/**
  * Badge state manager
  */
 function updateBadge(text, color = '#6366f1', clearAfterMs = 0) {
@@ -131,7 +239,7 @@ function updateBadge(text, color = '#6366f1', clearAfterMs = 0) {
       }, clearAfterMs);
     }
   } catch (e) {
-    console.warn('[ChatCourier] Badge update warning:', e);
+    console.warn('[ChatCourier] Badge warning:', e);
   }
 }
 
@@ -156,11 +264,10 @@ function notifyUser(title, message, isError = false) {
 
 /**
  * OpenAI-Compatible Chat Completions API Client
- * Works with Groq, OpenAI, OpenRouter, Together, Ollama, etc.
  */
 async function callCompletionAPI({ endpoint, apiKey, model, systemPrompt, userContent, temperature, maxTokens }) {
   if (!apiKey || apiKey.trim().length === 0) {
-    throw new Error('API Key is missing. Please configure your API key in ChatCourier settings.');
+    throw new Error('API Key is missing. Please configure your connection profile in ChatCourier settings.');
   }
 
   const completionsUrl = `${endpoint.replace(/\/+$/, '')}/chat/completions`;
@@ -169,7 +276,7 @@ async function callCompletionAPI({ endpoint, apiKey, model, systemPrompt, userCo
     messages: [
       {
         role: 'system',
-        content: systemPrompt || DEFAULT_CONFIG.customSystemPrompt
+        content: systemPrompt
       },
       {
         role: 'user',
@@ -203,27 +310,26 @@ async function callCompletionAPI({ endpoint, apiKey, model, systemPrompt, userCo
     } else if (response.status === 429) {
       throw new Error(`Rate Limit Exceeded: API rate limit reached (${errorDetail})`);
     } else if (response.status === 400) {
-      throw new Error(`Bad Request: Conversation may exceed model context window (${errorDetail})`);
+      throw new Error(`Bad Request: Prompt or context window issue (${errorDetail})`);
     }
     throw new Error(`API Error: ${errorDetail}`);
   }
 
   const data = await response.json();
-  const summary = data.choices?.[0]?.message?.content;
-  if (!summary) {
+  const resultText = data.choices?.[0]?.message?.content;
+  if (!resultText) {
     throw new Error('API returned an empty response.');
   }
 
   return {
-    summary,
+    content: resultText,
     model: data.model,
     usage: data.usage || {}
   };
 }
 
 /**
- * Tests connection to an OpenAI-compatible API endpoint.
- * Tries GET /models first; falls back to a minimal chat completion test.
+ * Tests connection to an OpenAI-compatible API endpoint
  */
 async function testConnection(endpoint, apiKey) {
   if (!apiKey || apiKey.trim().length === 0) {
@@ -232,7 +338,6 @@ async function testConnection(endpoint, apiKey) {
 
   const baseUrl = endpoint.replace(/\/+$/, '');
 
-  // Attempt 1: GET /models (standard OpenAI/Groq endpoint)
   try {
     const modelsRes = await fetch(`${baseUrl}/models`, {
       headers: {
@@ -247,12 +352,9 @@ async function testConnection(endpoint, apiKey) {
       const err = await modelsRes.json().catch(() => ({}));
       return { valid: false, message: err.error?.message || `Authentication failed (HTTP ${modelsRes.status})` };
     }
-    // If /models returns 404 or other non-auth error, try the completion fallback
-  } catch (fetchErr) {
-    // Network error on /models — try completion fallback
-  }
+  } catch (fetchErr) {}
 
-  // Attempt 2: Minimal completion test (for providers without /models)
+  // Fallback: minimal completion check
   try {
     const testRes = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
@@ -261,8 +363,8 @@ async function testConnection(endpoint, apiKey) {
         'Authorization': `Bearer ${apiKey.trim()}`
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo', // Common fallback model name
-        messages: [{ role: 'user', content: 'Hi' }],
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: 'test' }],
         max_tokens: 1
       })
     });
@@ -273,11 +375,35 @@ async function testConnection(endpoint, apiKey) {
       const err = await testRes.json().catch(() => ({}));
       return { valid: false, message: err.error?.message || `Authentication failed (HTTP ${testRes.status})` };
     } else {
-      // Non-auth error (e.g., model not found) but auth worked
       return { valid: true, models: [], method: 'completion-test-partial' };
     }
   } catch (err) {
     return { valid: false, message: `Connection failed: ${err.message}` };
+  }
+}
+
+/**
+ * Appends an item to Clipboard History (capped at max entries)
+ */
+async function appendClipboardHistory(item) {
+  try {
+    const data = await getStorageData();
+    const history = data.clipboardHistory || [];
+    const maxEntries = data.settings?.maxClipboardEntries || 30;
+
+    const newItem = {
+      id: 'clip_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+      kind: item.kind || 'digest',
+      preview: String(item.fullText || '').split('\n').filter(l => l.trim().length > 0)[0]?.slice(0, 100) || 'Copied text',
+      fullText: item.fullText,
+      copiedAt: Date.now(),
+      sourcePlatform: item.sourcePlatform || 'generic'
+    };
+
+    const updated = [newItem, ...history.filter(h => h.fullText !== item.fullText)].slice(0, maxEntries);
+    await setStorageData({ clipboardHistory: updated });
+  } catch (e) {
+    console.warn('[ChatCourier] History append warning:', e);
   }
 }
 
@@ -290,35 +416,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (action) {
     case 'GET_CONFIG': {
       getStorageData().then((config) => {
-        const merged = { ...DEFAULT_CONFIG, ...config };
+        const merged = {
+          profiles: config.profiles || DEFAULT_CONFIG.profiles,
+          activeProfileId: config.activeProfileId || 'default',
+          personas: config.personas || DEFAULT_PERSONAS,
+          activePersonaId: config.activePersonaId || null,
+          templates: config.templates || DEFAULT_TEMPLATES,
+          clipboardHistory: config.clipboardHistory || [],
+          settings: { ...DEFAULT_CONFIG.settings, ...(config.settings || {}) }
+        };
         const activeProfile = resolveActiveProfile(merged);
         const hasKey = Boolean(activeProfile.apiKey && activeProfile.apiKey.trim().length > 5);
         sendResponse({ success: true, config: merged, activeProfile, hasKey });
       }).catch(err => {
         sendResponse({ success: false, error: err.message });
       });
-      return true; // Async response
+      return true;
     }
 
     case 'SAVE_SETTINGS': {
-      const {
-        customSystemPrompt,
-        autoCopyOnSummarize,
-        showNotifications,
-        fabEnabled,
-        temperature,
-        maxTokens
-      } = payload || {};
-
-      const updates = {};
-      if (customSystemPrompt !== undefined) updates.customSystemPrompt = customSystemPrompt;
-      if (autoCopyOnSummarize !== undefined) updates.autoCopyOnSummarize = autoCopyOnSummarize;
-      if (showNotifications !== undefined) updates.showNotifications = showNotifications;
-      if (fabEnabled !== undefined) updates.fabEnabled = fabEnabled;
-      if (temperature !== undefined) updates.temperature = temperature;
-      if (maxTokens !== undefined) updates.maxTokens = maxTokens;
-
-      setStorageData(updates).then(() => {
+      getStorageData().then(async (config) => {
+        const currentSettings = config.settings || DEFAULT_CONFIG.settings;
+        const newSettings = { ...currentSettings, ...(payload || {}) };
+        await setStorageData({ settings: newSettings });
         sendResponse({ success: true });
       }).catch(err => {
         sendResponse({ success: false, error: err.message });
@@ -326,6 +446,122 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
+    // ── Unified Template Execution Engine ──
+    case 'RUN_TEMPLATE': {
+      updateBadge('RUN', '#8b5cf6');
+      (async () => {
+        try {
+          const config = await getStorageData();
+          const settings = { ...DEFAULT_CONFIG.settings, ...(config.settings || {}) };
+          const activeProfile = resolveActiveProfile(config);
+
+          const {
+            templateId = 'digest',
+            userContent = '',
+            extra = {}
+          } = payload || {};
+
+          if (!userContent || userContent.trim().length === 0) {
+            throw new Error('No content provided for processing.');
+          }
+
+          // 1. Resolve base template
+          let systemPrompt = resolveTemplatePrompt(config.templates, templateId);
+
+          // 2. Chain Thinking Mode depth template if enabled or requested
+          const thinkingEnabled = extra.thinkingDepth !== undefined ? Boolean(extra.thinkingDepth) : settings.thinkingModeEnabled;
+          if (thinkingEnabled) {
+            const depth = extra.thinkingDepth || settings.thinkingModeDepth || 'standard';
+            const depthTemplateId = `thinking_${depth}`;
+            const thinkingPrompt = resolveTemplatePrompt(config.templates, depthTemplateId);
+            if (thinkingPrompt) {
+              systemPrompt = `${thinkingPrompt}\n\n${systemPrompt}`;
+            }
+          }
+
+          // 3. Chain Persona instruction block if active or specified
+          const personaId = extra.personaId !== undefined ? extra.personaId : config.activePersonaId;
+          if (personaId) {
+            const personas = config.personas || DEFAULT_PERSONAS;
+            const persona = personas.find(p => p.id === personaId);
+            if (persona && persona.instructionBlock) {
+              systemPrompt = `[Active Persona: ${persona.name}]\n${persona.instructionBlock}\n\n${systemPrompt}`;
+            }
+          }
+
+          // 4. Chain Auto-Suggested Next Steps if enabled and template is digest
+          const autoSuggestEnabled = extra.autoSuggest !== undefined ? Boolean(extra.autoSuggest) : settings.autoSuggestEnabled;
+          if (autoSuggestEnabled && templateId === 'digest') {
+            const autoSuggestPrompt = resolveTemplatePrompt(config.templates, 'auto_suggest');
+            if (autoSuggestPrompt) {
+              systemPrompt = `${systemPrompt}\n\n${autoSuggestPrompt}`;
+            }
+          }
+
+          const endpoint = activeProfile.endpoint || 'https://api.groq.com/openai/v1';
+          const apiKey = activeProfile.apiKey;
+          const model = activeProfile.modelId;
+
+          const result = await callCompletionAPI({
+            endpoint,
+            apiKey,
+            model,
+            systemPrompt,
+            userContent,
+            temperature: settings.temperature,
+            maxTokens: settings.maxTokens
+          });
+
+          updateBadge('DONE', '#10b981', 3000);
+          if (settings.showNotifications) {
+            const title = templateId === 'rewriter' ? 'Prompt Rewritten' : 'Handoff Ready';
+            const body = templateId === 'rewriter' ? 'Prompt successfully enhanced.' : 'Context digest synthesized.';
+            notifyUser(title, body);
+          }
+
+          sendResponse({ success: true, summary: result.content, model: result.model, usage: result.usage });
+        } catch (err) {
+          updateBadge('ERR', '#ef4444', 4000);
+          sendResponse({ success: false, error: err.message });
+        }
+      })();
+      return true;
+    }
+
+    // ── Template CRUD ──
+    case 'SAVE_TEMPLATE': {
+      const { templateId, userOverride } = payload || {};
+      getStorageData().then(async (config) => {
+        const templates = [...(config.templates || DEFAULT_TEMPLATES)];
+        const idx = templates.findIndex(t => t.id === templateId);
+        if (idx >= 0) {
+          templates[idx] = { ...templates[idx], userOverride };
+        }
+        await setStorageData({ templates });
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    case 'RESET_TEMPLATE': {
+      const { templateId } = payload || {};
+      getStorageData().then(async (config) => {
+        const templates = [...(config.templates || DEFAULT_TEMPLATES)];
+        const idx = templates.findIndex(t => t.id === templateId);
+        if (idx >= 0) {
+          templates[idx] = { ...templates[idx], userOverride: null };
+        }
+        await setStorageData({ templates });
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    // ── Profile CRUD ──
     case 'SAVE_PROFILE': {
       const profile = payload?.profile;
       if (!profile || !profile.id) {
@@ -334,8 +570,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       getStorageData().then(async (config) => {
-        const merged = { ...DEFAULT_CONFIG, ...config };
-        const profiles = [...(merged.profiles || [])];
+        const profiles = [...(config.profiles || DEFAULT_CONFIG.profiles)];
         const existingIdx = profiles.findIndex(p => p.id === profile.id);
 
         if (existingIdx >= 0) {
@@ -354,26 +589,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'DELETE_PROFILE': {
       const deleteId = payload?.profileId;
-      if (!deleteId) {
-        sendResponse({ success: false, error: 'No profile ID provided' });
-        return false;
-      }
-
       getStorageData().then(async (config) => {
-        const merged = { ...DEFAULT_CONFIG, ...config };
-        const profiles = (merged.profiles || []).filter(p => p.id !== deleteId);
-
+        const profiles = (config.profiles || []).filter(p => p.id !== deleteId);
         if (profiles.length === 0) {
           sendResponse({ success: false, error: 'Cannot delete the last profile' });
           return;
         }
-
         const updates = { profiles };
-        // If we deleted the active profile, switch to the first remaining one
-        if (merged.activeProfileId === deleteId) {
+        if (config.activeProfileId === deleteId) {
           updates.activeProfileId = profiles[0].id;
         }
-
         await setStorageData(updates);
         sendResponse({ success: true });
       }).catch(err => {
@@ -384,12 +609,114 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'SET_ACTIVE_PROFILE': {
       const profileId = payload?.profileId;
-      if (!profileId) {
-        sendResponse({ success: false, error: 'No profile ID provided' });
+      setStorageData({ activeProfileId: profileId }).then(() => {
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    // ── Persona CRUD ──
+    case 'SAVE_PERSONA': {
+      const persona = payload?.persona;
+      if (!persona || !persona.id) {
+        sendResponse({ success: false, error: 'Invalid persona data' });
         return false;
       }
 
-      setStorageData({ activeProfileId: profileId }).then(() => {
+      getStorageData().then(async (config) => {
+        const personas = [...(config.personas || DEFAULT_PERSONAS)];
+        const existingIdx = personas.findIndex(p => p.id === persona.id);
+
+        if (existingIdx >= 0) {
+          personas[existingIdx] = persona;
+        } else {
+          personas.push(persona);
+        }
+
+        await setStorageData({ personas });
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    case 'DELETE_PERSONA': {
+      const deleteId = payload?.personaId;
+      getStorageData().then(async (config) => {
+        const personas = (config.personas || []).filter(p => p.id !== deleteId);
+        const updates = { personas };
+        if (config.activePersonaId === deleteId) {
+          updates.activePersonaId = null;
+        }
+        await setStorageData(updates);
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    case 'SET_ACTIVE_PERSONA': {
+      const personaId = payload?.personaId || null;
+      setStorageData({ activePersonaId: personaId }).then(() => {
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    case 'IMPORT_PERSONAS': {
+      const imported = payload?.personas;
+      if (!Array.isArray(imported)) {
+        sendResponse({ success: false, error: 'Invalid JSON array of personas' });
+        return false;
+      }
+
+      getStorageData().then(async (config) => {
+        const currentPersonas = [...(config.personas || DEFAULT_PERSONAS)];
+        imported.forEach(item => {
+          if (item && item.name && item.instructionBlock) {
+            const id = item.id || ('persona_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6));
+            const existingIdx = currentPersonas.findIndex(p => p.id === id);
+            const sanitized = {
+              id,
+              name: String(item.name).slice(0, 60),
+              description: String(item.description || '').slice(0, 200),
+              instructionBlock: String(item.instructionBlock),
+              preferredPlatform: item.preferredPlatform || 'any',
+              temperature: typeof item.temperature === 'number' ? item.temperature : undefined
+            };
+            if (existingIdx >= 0) {
+              currentPersonas[existingIdx] = sanitized;
+            } else {
+              currentPersonas.push(sanitized);
+            }
+          }
+        });
+        await setStorageData({ personas: currentPersonas });
+        sendResponse({ success: true, count: currentPersonas.length });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    // ── Clipboard History ──
+    case 'ADD_CLIPBOARD_ITEM': {
+      appendClipboardHistory(payload || {}).then(() => {
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    case 'CLEAR_CLIPBOARD_HISTORY': {
+      setStorageData({ clipboardHistory: [] }).then(() => {
         sendResponse({ success: true });
       }).catch(err => {
         sendResponse({ success: false, error: err.message });
@@ -407,188 +734,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
-    // Legacy support — keep old action name working during migration
-    case 'TEST_API_KEY': {
-      const apiKey = payload?.apiKey;
-      getStorageData().then(async (config) => {
-        const merged = { ...DEFAULT_CONFIG, ...config };
-        const activeProfile = resolveActiveProfile(merged);
-        const endpoint = activeProfile.endpoint || 'https://api.groq.com/openai/v1';
-        const result = await testConnection(endpoint, apiKey);
-        sendResponse(result);
-      }).catch(err => {
-        sendResponse({ valid: false, message: err.message });
-      });
-      return true;
-    }
-
-    case 'SUMMARIZE': {
-      updateBadge('SUM', '#8b5cf6');
-      (async () => {
-        let showNotif = true;
-        try {
-          const config = await getStorageData();
-          const effectiveConfig = { ...DEFAULT_CONFIG, ...config };
-          showNotif = effectiveConfig.showNotifications !== false;
-          const activeProfile = resolveActiveProfile(effectiveConfig);
-
-          const endpoint = activeProfile.endpoint || 'https://api.groq.com/openai/v1';
-          const apiKey = payload?.apiKey || activeProfile.apiKey;
-          const model = payload?.model || activeProfile.modelId;
-          const transcript = payload?.transcript;
-          const systemPrompt = payload?.systemPrompt || effectiveConfig.customSystemPrompt;
-
-          if (!transcript) {
-            throw new Error('No transcript data provided for summarization.');
-          }
-
-          const result = await callCompletionAPI({
-            endpoint,
-            apiKey,
-            model,
-            systemPrompt,
-            userContent: transcript,
-            temperature: effectiveConfig.temperature,
-            maxTokens: effectiveConfig.maxTokens
-          });
-
-          updateBadge('DONE', '#10b981', 3000);
-          if (showNotif) {
-            notifyUser('Handoff Ready', 'LLM Context Digest successfully synthesized!');
-          }
-
-          sendResponse({ success: true, ...result });
-        } catch (err) {
-          updateBadge('ERR', '#ef4444', 4000);
-          if (showNotif) {
-            notifyUser('Summarization Failed', err.message, true);
-          }
-          sendResponse({ success: false, error: err.message });
-        }
-      })();
-      return true;
-    }
-
-    // Legacy action name support
+    // Legacy action forwards
+    case 'SUMMARIZE':
     case 'SUMMARIZE_GROQ': {
-      // Forward to the new SUMMARIZE handler
-      updateBadge('SUM', '#8b5cf6');
-      (async () => {
-        let showNotif = true;
-        try {
-          const config = await getStorageData();
-          const effectiveConfig = { ...DEFAULT_CONFIG, ...config };
-          showNotif = effectiveConfig.showNotifications !== false;
-          const activeProfile = resolveActiveProfile(effectiveConfig);
-
-          const endpoint = activeProfile.endpoint || 'https://api.groq.com/openai/v1';
-          const apiKey = payload?.apiKey || activeProfile.apiKey;
-          const model = payload?.model || activeProfile.modelId;
-          const transcript = payload?.transcript;
-          const systemPrompt = payload?.systemPrompt || effectiveConfig.customSystemPrompt;
-
-          if (!transcript) {
-            throw new Error('No transcript data provided for summarization.');
-          }
-
-          const result = await callCompletionAPI({
-            endpoint,
-            apiKey,
-            model,
-            systemPrompt,
-            userContent: transcript,
-            temperature: effectiveConfig.temperature,
-            maxTokens: effectiveConfig.maxTokens
-          });
-
-          updateBadge('DONE', '#10b981', 3000);
-          if (showNotif) {
-            notifyUser('Handoff Ready', 'LLM Context Digest successfully synthesized!');
-          }
-
-          sendResponse({ success: true, ...result });
-        } catch (err) {
-          updateBadge('ERR', '#ef4444', 4000);
-          if (showNotif) {
-            notifyUser('Summarization Failed', err.message, true);
-          }
-          sendResponse({ success: false, error: err.message });
+      chrome.runtime.sendMessage({
+        action: 'RUN_TEMPLATE',
+        payload: {
+          templateId: 'digest',
+          userContent: payload?.transcript,
+          extra: payload?.extra || {}
         }
-      })();
-      return true;
-    }
-
-    // Legacy support for old SAVE_API_KEY action
-    case 'SAVE_API_KEY': {
-      const {
-        apiKey,
-        defaultModel,
-        customSystemPrompt,
-        autoCopyOnSummarize,
-        showNotifications,
-        fabEnabled,
-        temperature,
-        maxTokens
-      } = payload || {};
-
-      getStorageData().then(async (config) => {
-        const merged = { ...DEFAULT_CONFIG, ...config };
-        const updates = {};
-
-        // Update general settings
-        if (customSystemPrompt !== undefined) updates.customSystemPrompt = customSystemPrompt;
-        if (autoCopyOnSummarize !== undefined) updates.autoCopyOnSummarize = autoCopyOnSummarize;
-        if (showNotifications !== undefined) updates.showNotifications = showNotifications;
-        if (fabEnabled !== undefined) updates.fabEnabled = fabEnabled;
-        if (temperature !== undefined) updates.temperature = temperature;
-        if (maxTokens !== undefined) updates.maxTokens = maxTokens;
-
-        // Update active profile if apiKey or model provided
-        if (apiKey !== undefined || defaultModel !== undefined) {
-          const profiles = [...(merged.profiles || DEFAULT_CONFIG.profiles)];
-          const activeProfile = profiles.find(p => p.id === merged.activeProfileId) || profiles[0];
-          if (apiKey !== undefined) activeProfile.apiKey = apiKey;
-          if (defaultModel !== undefined) activeProfile.modelId = defaultModel;
-          updates.profiles = profiles;
-        }
-
-        await setStorageData(updates);
-        sendResponse({ success: true });
-      }).catch(err => {
-        sendResponse({ success: false, error: err.message });
-      });
+      }, sendResponse);
       return true;
     }
 
     case 'OPEN_OPTIONS': {
       try {
-        if (chrome.runtime.openOptionsPage) {
-          chrome.runtime.openOptionsPage(() => {
-            sendResponse({ success: true });
-          });
+        const hash = payload?.hash ? `#${payload.hash}` : '';
+        const url = chrome.runtime.getURL(`options/options.html${hash}`);
+        if (chrome.runtime.openOptionsPage && !hash) {
+          chrome.runtime.openOptionsPage(() => sendResponse({ success: true }));
         } else {
-          chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html') }, () => {
-            sendResponse({ success: true });
-          });
+          chrome.tabs.create({ url }, () => sendResponse({ success: true }));
         }
       } catch (err) {
         sendResponse({ success: false, error: err.message });
       }
       return true;
-    }
-
-    case 'SET_BADGE': {
-      const { text, color, clearAfterMs } = payload || {};
-      updateBadge(text, color, clearAfterMs);
-      sendResponse({ success: true });
-      return false;
-    }
-
-    case 'SHOW_NOTIFICATION': {
-      const { title, message, isError } = payload || {};
-      notifyUser(title, message, isError);
-      sendResponse({ success: true });
-      return false;
     }
 
     default:
