@@ -287,14 +287,28 @@ async function callCompletionAPI({ endpoint, apiKey, model, systemPrompt, userCo
     max_tokens: typeof maxTokens === 'number' ? maxTokens : 4096
   };
 
-  const response = await fetch(completionsUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey.trim()}`
-    },
-    body: JSON.stringify(payload)
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  let response;
+  try {
+    response = await fetch(completionsUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey.trim()}`
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } catch (fetchErr) {
+    if (fetchErr.name === 'AbortError') {
+      throw new Error('Request timed out (30s limit exceeded). Please check your network or provider status.');
+    }
+    throw fetchErr;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let errorDetail = `HTTP ${response.status} ${response.statusText}`;
