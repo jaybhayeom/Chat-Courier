@@ -1,0 +1,10 @@
+# Build artifacts & packages
+*.zip
+*.tar.gz
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

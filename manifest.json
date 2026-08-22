@@ -1,0 +1,89 @@
+{
+  "manifest_version": 3,
+  "name": "ChatCourier - Seamless LLM Context Handoff Engine",
+  "short_name": "ChatCourier",
+  "version": "1.1.0",
+  "description": "Extracts, normalizes, and condenses multi-platform AI chat sessions (ChatGPT, Claude, Gemini, Perplexity, DeepSeek) into structured context handoff digests via any OpenAI-compatible API.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "ChatCourier - LLM Context Handoff Engine"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*",
+        "https://chat.deepseek.com/*"
+      ],
+      "js": [
+        "scrapers/BaseScraper.js",
+        "scrapers/ChatGPTScraper.js",
+        "scrapers/ClaudeScraper.js",
+        "scrapers/GeminiScraper.js",
+        "scrapers/PerplexityScraper.js",
+        "scrapers/DeepSeekScraper.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "clipboardWrite",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://www.perplexity.ai/*",
+    "https://chat.deepseek.com/*",
+    "https://api.groq.com/*",
+    "https://*/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*",
+        "options/*",
+        "content.css"
+      ],
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*",
+        "https://chat.deepseek.com/*"
+      ]
+    }
+  ]
+}
