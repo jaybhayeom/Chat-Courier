@@ -39,13 +39,22 @@ If the session's content doesn't cleanly fill one of these sections, omit that s
   {
     id: 'rewriter',
     label: 'Prompt Rewriter',
-    defaultPrompt: `You are an expert prompt engineer. Your job is to take a user's rough draft prompt and expand, enrich, and rewrite it from the USER's perspective into a comprehensive, professional master prompt ready to be sent directly to an AI.
+    defaultPrompt: `You are refining a colleague's message before it gets sent to an AI system. Preserve their original intent exactly — you are clarifying and structuring it, never changing what they're actually asking for.
 
-Requirements:
-1. User Perspective: Write strictly from the USER's point of view directing an AI assistant (e.g., "Act as an expert...", "Your task is to...", "Core Requirements:", "Step-by-Step Instructions:"). Never speak from an AI or third-person perspective (do not write "The user wants...").
-2. Deeply Extend & Expand: Add the necessary architectural depth, domain best practices, explicit functional constraints, edge-case handling, and output format specifications that the draft implies.
-3. Structure: Organize the rewritten prompt with clear Markdown sections (Role, Objective, Context, Constraints, Step-by-Step Execution, Expected Deliverables).
-4. Zero Meta-Commentary: Do NOT answer the prompt, do NOT explain what you changed, and do NOT include conversational greetings. Return ONLY the rewritten prompt ready to send.`,
+First, determine which of these applies:
+
+MODE A — the message is casual, conversational, or already fully specified with no meaningful missing decision (a greeting, small talk, a fully-scoped request). Rewrite it to be a little clearer and more natural to respond to, keeping its original tone and level of informality. Do not add clarifying questions to something that doesn't need any — that would make simple messages feel bureaucratic.
+
+MODE B — the message describes a task where the actual right answer depends on specifics the person hasn't given you (their domain of interest, skill level, constraints, purpose, timeframe, or anything else that would change what a good response looks like). For these:
+
+  1. State the underlying goal clearly and professionally, in one or two sentences.
+  2. Identify every genuinely open decision point relevant to this specific kind of task — not generic filler questions, ones that would actually change the outcome.
+  3. Instruct the receiving AI explicitly to ask about these one at a time, waiting for an answer to each before asking the next, and to only give a final recommendation or plan once all of them are answered.
+  4. Never fill in an assumed answer to one of these yourself. If a detail would materially change the outcome and the person hasn't stated it, it becomes a question in the output — it does not become a guess.
+
+If prior conversation context is provided alongside the draft message, use it before writing your questions: skip anything the context already establishes, and shape the stated goal around what's actually been discussed so far, rather than treating the request as if it arrived with no history.
+
+Return only the rewritten prompt — for Mode B, that means the restated goal followed by the instruction to ask the identified questions one at a time, nothing else added.`,
     userOverride: null
   },
   {
@@ -462,6 +471,7 @@ async function executeTemplateRun(payload) {
   const {
     templateId = 'digest',
     userContent = '',
+    conversationContext = null,
     extra = {}
   } = payload || {};
 
@@ -502,17 +512,23 @@ async function executeTemplateRun(payload) {
     }
   }
 
-  // 5. Prepend Global Core Voice Directive ahead of all templates (Addendum 3)
+  // 5. Prepend Global Core Voice Directive ahead of all templates (Addendum 3 & 4)
   const coreVoice = (config.coreVoiceDirective !== undefined && config.coreVoiceDirective !== null)
     ? config.coreVoiceDirective
     : DEFAULT_CORE_VOICE_DIRECTIVE;
 
   const systemPrompt = coreVoice ? `${coreVoice}\n\n${taskPrompt}` : taskPrompt;
 
-  // Format user content framing so target LLMs properly execute without confusion
+  // Format user content framing according to Addendum 4 §4
   let formattedUserContent = userContent.trim();
+  const activeContext = conversationContext || extra.conversationContext || null;
+
   if (templateId === 'rewriter') {
-    formattedUserContent = `[USER DRAFT PROMPT TO EXTEND & REWRITE]:\n"""\n${userContent.trim()}\n"""\n\nTask: Expand and rewrite the draft prompt above from the USER's point of view into an expert-level, comprehensive master prompt. Include role definition, detailed requirements, step-by-step instructions, constraints, and output specifications. Output ONLY the rewritten prompt ready to send to an AI.`;
+    if (activeContext && String(activeContext).trim().length > 0) {
+      formattedUserContent = `Prior conversation:\n"""\n${String(activeContext).trim()}\n"""\n\nDraft message to rewrite:\n"""\n${userContent.trim()}\n"""`;
+    } else {
+      formattedUserContent = `Draft message to rewrite:\n"""\n${userContent.trim()}\n"""`;
+    }
   } else if (templateId === 'digest') {
     formattedUserContent = `[CONVERSATION TRANSCRIPT TO SUMMARIZE FOR HANDOFF]:\n\n${userContent.trim()}\n\n---\nSynthesize a faithful, high-density Context Handoff Digest based strictly on the transcript above following the specified section headers.`;
   }
