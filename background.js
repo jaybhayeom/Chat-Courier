@@ -425,8 +425,17 @@ async function appendClipboardHistory(item) {
  * Unified template execution engine
  */
 async function executeTemplateRun(payload) {
-  const config = await getStorageData();
-  const settings = { ...DEFAULT_CONFIG.settings, ...(config.settings || {}) };
+  const stored = await getStorageData();
+  const config = {
+    profiles: stored.profiles || DEFAULT_CONFIG.profiles,
+    activeProfileId: stored.activeProfileId || 'default',
+    personas: stored.personas || DEFAULT_PERSONAS,
+    activePersonaId: stored.activePersonaId || null,
+    templates: stored.templates || DEFAULT_TEMPLATES,
+    clipboardHistory: stored.clipboardHistory || [],
+    settings: { ...DEFAULT_CONFIG.settings, ...(stored.settings || {}) }
+  };
+  const settings = config.settings;
   const activeProfile = resolveActiveProfile(config);
 
   const {
