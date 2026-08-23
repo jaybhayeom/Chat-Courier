@@ -738,12 +738,24 @@
       setRewriterGlowState('generating');
       showToast('Rewriting prompt...', 'info');
 
+      let conversationContext = null;
+      try {
+        const session = await performExtraction();
+        if (session && session.rawTranscript) {
+          conversationContext = session.rawTranscript;
+        }
+      } catch (_) {}
+
       try {
         const res = await safeSendMessage({
           action: 'RUN_TEMPLATE',
           payload: {
             templateId: 'rewriter',
-            userContent: composerText
+            userContent: composerText,
+            conversationContext: conversationContext || null,
+            extra: {
+              conversationContext: conversationContext || null
+            }
           }
         });
 

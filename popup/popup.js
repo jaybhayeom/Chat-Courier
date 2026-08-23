@@ -535,14 +535,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     showFeedback('Enhancing prompt...', 'info', 0);
 
     try {
+      let conversationContext = activeSessionData ? activeSessionData.rawTranscript : '';
+      if (!conversationContext && activeTabId && isInjectableUrl(activeTabUrl)) {
+        try {
+          const extractRes = await querySessionFromTab(activeTabId, activeTabUrl);
+          if (extractRes && extractRes.success && extractRes.session) {
+            activeSessionData = extractRes.session;
+            conversationContext = activeSessionData.rawTranscript;
+          }
+        } catch (_) {}
+      }
+
       const response = await new Promise((resolve) => {
         chrome.runtime.sendMessage({
           action: 'RUN_TEMPLATE',
           payload: {
             templateId: 'rewriter',
             userContent: rawPrompt,
+            conversationContext: conversationContext || null,
             extra: {
-              personaId: personaSelect.value || null
+              personaId: personaSelect.value || null,
+              conversationContext: conversationContext || null
             }
           }
         }, resolve);
