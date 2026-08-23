@@ -27,6 +27,11 @@
     history: false
   };
 
+  // Rewriter Glow State Machine
+  let rewriterGlowState = 'default';
+  let rewriterSafetyTimer = null;
+  let passivePasteListener = null;
+
   // Floating Position & Drag State
   const ORB_SIZE = 44;
   let currentPosX = window.innerWidth - (ORB_SIZE + 20);
@@ -132,6 +137,101 @@
       fab.classList.add('context-invalidated');
       fab.title = 'Reload this page to reconnect ChatCourier';
       fab.setAttribute('aria-label', 'Reload this page to reconnect ChatCourier');
+    }
+  }
+
+  // ─── 1. Rewriter Glow State Machine ───
+  function setRewriterGlowState(state, targetText = '') {
+    rewriterGlowState = state;
+    if (rewriterSafetyTimer) {
+      clearTimeout(rewriterSafetyTimer);
+      rewriterSafetyTimer = null;
+    }
+
+    const btnRewriter = document.getElementById('chatcourier-btn-rewriter');
+    const fab = document.getElementById('chatcourier-fab');
+
+    if (state === 'generating') {
+      if (btnRewriter) {
+        btnRewriter.classList.remove('is-ready', 'is-used');
+        btnRewriter.classList.add('is-generating');
+      }
+      if (fab) {
+        fab.classList.remove('is-ready', 'is-used');
+        fab.classList.add('is-generating');
+      }
+    } else if (state === 'ready') {
+      if (btnRewriter) {
+        btnRewriter.classList.remove('is-generating', 'is-used');
+        btnRewriter.classList.add('is-ready');
+      }
+      if (fab) {
+        fab.classList.remove('is-generating', 'is-used');
+        fab.classList.add('is-ready');
+      }
+      attachPassiveComposerListener(targetText);
+
+      // 10-minute safety timeout to auto-revert to Default
+      rewriterSafetyTimer = setTimeout(() => {
+        setRewriterGlowState('default');
+      }, 10 * 60 * 1000);
+    } else if (state === 'used') {
+      detachPassiveComposerListener();
+      if (btnRewriter) {
+        btnRewriter.classList.remove('is-generating', 'is-ready');
+        btnRewriter.classList.add('is-used');
+      }
+      if (fab) {
+        fab.classList.remove('is-generating', 'is-ready');
+        fab.classList.add('is-used');
+      }
+      setTimeout(() => {
+        setRewriterGlowState('default');
+      }, 250);
+    } else { // default
+      detachPassiveComposerListener();
+      if (btnRewriter) {
+        btnRewriter.classList.remove('is-generating', 'is-ready', 'is-used');
+      }
+      if (fab) {
+        fab.classList.remove('is-generating', 'is-ready', 'is-used');
+      }
+    }
+  }
+
+  function attachPassiveComposerListener(targetText) {
+    if (!targetText || !activeScraper) return;
+    const comp = activeScraper.findComposerElement();
+    if (!comp) return;
+
+    detachPassiveComposerListener();
+
+    const normalizedChunk = targetText.trim().slice(0, 30).toLowerCase().replace(/\s+/g, ' ');
+    if (!normalizedChunk) return;
+
+    passivePasteListener = () => {
+      try {
+        const currentVal = (activeScraper.getComposerText() || '').toLowerCase().replace(/\s+/g, ' ');
+        if (currentVal.includes(normalizedChunk)) {
+          setRewriterGlowState('used');
+        }
+      } catch (_) {}
+    };
+
+    comp.addEventListener('input', passivePasteListener, { passive: true });
+    comp.addEventListener('paste', passivePasteListener, { passive: true });
+  }
+
+  function detachPassiveComposerListener() {
+    if (passivePasteListener && activeScraper) {
+      try {
+        const comp = activeScraper.findComposerElement();
+        if (comp) {
+          comp.removeEventListener('input', passivePasteListener);
+          comp.removeEventListener('paste', passivePasteListener);
+        }
+      } catch (_) {}
+      passivePasteListener = null;
     }
   }
 
@@ -635,6 +735,7 @@
 
       actionLocks.rewriter = true;
       triggerLoadingState(btnRewriter);
+      setRewriterGlowState('generating');
       showToast('Rewriting prompt...', 'info');
 
       try {
@@ -648,13 +749,17 @@
 
         if (res && res.success && res.summary) {
           triggerSuccessState(btnRewriter, SVG_ICONS.rewriter);
+          setRewriterGlowState('ready', res.summary);
           copyTextWithFallback(res.summary, null);
+          showToast('Prompt rewritten and copied! Paste or insert into chat.', 'success');
         } else {
           triggerErrorState(btnRewriter, SVG_ICONS.rewriter);
+          setRewriterGlowState('default');
           showToast(res?.error || 'Rewrite failed', 'error');
         }
       } catch (err) {
         triggerErrorState(btnRewriter, SVG_ICONS.rewriter);
+        setRewriterGlowState('default');
         showToast(err.message, 'error');
       } finally {
         actionLocks.rewriter = false;
@@ -816,6 +921,20 @@
       const ok = activeScraper ? activeScraper.setComposerText(instruction) : false;
       if (ok) {
         showToast('Persona instruction inserted into composer', 'success');
+      } else {
+        showToast('Could not find composer. Paste manually.', 'info');
+      }
+      sendResponse({ success: ok });
+      return false;
+    }
+
+    if (action === 'INSERT_INTO_COMPOSER') {
+      if (!activeScraper) initScraper();
+      const text = payload?.text || '';
+      const ok = activeScraper ? activeScraper.setComposerText(text) : false;
+      if (ok) {
+        setRewriterGlowState('used');
+        showToast('Inserted into chat composer', 'success');
       } else {
         showToast('Could not find composer. Paste manually.', 'info');
       }
