@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const rewriterSkeleton = document.getElementById('rewriter-skeleton');
   const rewriterOutputCard = document.getElementById('rewriter-output-card');
   const rewriterOutputContent = document.getElementById('rewriter-output-content');
+  const btnInsertRewrite = document.getElementById('btn-insert-rewrite');
   const btnRetryRewrite = document.getElementById('btn-retry-rewrite');
   const btnCopyRewrite = document.getElementById('btn-copy-rewrite');
   const btnDownloadRewrite = document.getElementById('btn-download-rewrite');
@@ -57,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // History View Elements
   const btnBackHistory = document.getElementById('btn-back-history');
   const btnClearHistory = document.getElementById('btn-clear-history');
+  const historyFilterPills = document.getElementById('history-filter-pills');
   const historyList = document.getElementById('history-list');
 
   // Feedback Footer
@@ -72,9 +74,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   let activeDigest = null;
   let lastRewrittenPrompt = null;
   let hasValidApiKey = false;
+  let currentHistoryFilter = 'all';
+
+  // Rewriter Glow State
+  let popupRewriterGlowState = 'default';
+  let popupRewriterSafetyTimer = null;
+
+  function setPopupRewriterGlow(state) {
+    popupRewriterGlowState = state;
+    if (popupRewriterSafetyTimer) {
+      clearTimeout(popupRewriterSafetyTimer);
+      popupRewriterSafetyTimer = null;
+    }
+
+    if (!btnRewriter) return;
+
+    if (state === 'generating') {
+      btnRewriter.classList.remove('is-ready', 'is-used');
+      btnRewriter.classList.add('is-generating');
+    } else if (state === 'ready') {
+      btnRewriter.classList.remove('is-generating', 'is-used');
+      btnRewriter.classList.add('is-ready');
+
+      popupRewriterSafetyTimer = setTimeout(() => {
+        setPopupRewriterGlow('default');
+      }, 10 * 60 * 1000);
+    } else if (state === 'used') {
+      btnRewriter.classList.remove('is-generating', 'is-ready');
+      btnRewriter.classList.add('is-used');
+      setTimeout(() => {
+        setPopupRewriterGlow('default');
+      }, 250);
+    } else {
+      btnRewriter.classList.remove('is-generating', 'is-ready', 'is-used');
+    }
+  }
 
   // ─── Shared Fresh-Activation Clipboard Utility ───
-  async function copyResultToClipboard(text, sourceBtn, kind = 'digest') {
+  async function copyResultToClipboard(text, sourceBtn, kind = 'digest', recordHistory = true) {
     if (!text || text.trim().length === 0) return false;
 
     let copied = false;
@@ -108,15 +145,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (copied) {
-      // Log to ChatCourier local clipboard history
-      chrome.runtime.sendMessage({
-        action: 'ADD_CLIPBOARD_ITEM',
-        payload: {
-          kind,
-          fullText: text,
-          sourcePlatform: activePlatform
-        }
-      });
+      if (recordHistory) {
+        // Log to ChatCourier local clipboard history
+        chrome.runtime.sendMessage({
+          action: 'ADD_CLIPBOARD_ITEM',
+          payload: {
+            kind,
+            fullText: text,
+            sourcePlatform: activePlatform
+          }
+        });
+      }
 
       // Visual button feedback
       if (sourceBtn) {
@@ -492,6 +531,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     rewriterSkeleton.classList.remove('hidden');
     rewriterOutputCard.classList.add('hidden');
     btnSubmitRewriter.classList.add('loading');
+    setPopupRewriterGlow('generating');
     showFeedback('Enhancing prompt...', 'info', 0);
 
     try {
@@ -516,9 +556,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       rewriterOutputContent.textContent = lastRewrittenPrompt;
       rewriterOutputCard.classList.remove('hidden');
       rewriterSkeleton.classList.add('hidden');
-      showFeedback('Prompt enhanced! Click Copy or Apply.', 'success');
+      setPopupRewriterGlow('ready');
+      showFeedback('Prompt enhanced! Insert into chat or copy.', 'success');
     } catch (err) {
       rewriterSkeleton.classList.add('hidden');
+      setPopupRewriterGlow('default');
       showFeedback(`Rewrite error: ${err.message}`, 'error', 5000);
     } finally {
       btnSubmitRewriter.classList.remove('loading');
@@ -527,6 +569,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   btnSubmitRewriter.addEventListener('click', executePromptRewrite);
   btnRetryRewrite.addEventListener('click', executePromptRewrite);
+
+  if (btnInsertRewrite) {
+    btnInsertRewrite.addEventListener('click', async () => {
+      const text = rewriterOutputContent.textContent;
+      if (!text) return;
+
+      if (activeTabId && isInjectableUrl(activeTabUrl)) {
+        try {
+          chrome.tabs.sendMessage(activeTabId, { action: 'INSERT_INTO_COMPOSER', payload: { text } }, (res) => {
+            const err = chrome.runtime.lastError;
+            if (!err && res && res.success) {
+              setPopupRewriterGlow('used');
+              showFeedback('Inserted into chat composer', 'success');
+            } else {
+              copyResultToClipboard(text, btnInsertRewrite, 'rewrite');
+              showFeedback('Could not insert directly. Copied to clipboard.', 'info');
+            }
+          });
+        } catch (_) {
+          copyResultToClipboard(text, btnInsertRewrite, 'rewrite');
+        }
+      } else {
+        copyResultToClipboard(text, btnInsertRewrite, 'rewrite');
+      }
+    });
+  }
 
   btnCopyRewrite.addEventListener('click', () => {
     copyResultToClipboard(rewriterOutputContent.textContent, btnCopyRewrite, 'rewrite');
@@ -585,36 +653,123 @@ document.addEventListener('DOMContentLoaded', async () => {
     switchView('main');
   });
 
+  function formatRelativeTime(ts) {
+    if (!ts) return '';
+    const diffSec = Math.floor((Date.now() - ts) / 1000);
+    if (diffSec < 45) return 'just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}h ago`;
+    const diffDays = Math.floor(diffHour / 24);
+    return `${diffDays}d ago`;
+  }
+
   function renderHistoryView() {
     chrome.runtime.sendMessage({ action: 'GET_CONFIG' }, (res) => {
       const history = res?.config?.clipboardHistory || [];
       historyList.innerHTML = '';
+      if (historyFilterPills) historyFilterPills.innerHTML = '';
 
       if (history.length === 0) {
         historyList.innerHTML = '<div class="empty-state">No items copied yet.</div>';
         return;
       }
 
+      const platformLabels = {
+        'chatgpt': 'ChatGPT',
+        'claude': 'Claude',
+        'gemini': 'Gemini',
+        'perplexity': 'Perplexity',
+        'deepseek': 'DeepSeek',
+        'rewriter': 'Rewrite',
+        'thinking': 'Thinking',
+        'generic': 'Web Chat'
+      };
+
+      // 1. Gather all unique sources present
+      const presentSources = new Set();
       history.forEach(item => {
+        const src = item.sourcePlatform || (item.kind === 'rewrite' ? 'rewriter' : 'generic');
+        presentSources.add(src);
+      });
+
+      // 2. Render filter pills (All + only tools with entries)
+      if (historyFilterPills) {
+        const allPill = document.createElement('button');
+        allPill.className = `history-pill ${currentHistoryFilter === 'all' ? 'active' : ''}`;
+        allPill.textContent = 'All';
+        allPill.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentHistoryFilter = 'all';
+          renderHistoryView();
+        });
+        historyFilterPills.appendChild(allPill);
+
+        presentSources.forEach(src => {
+          const pill = document.createElement('button');
+          pill.className = `history-pill ${currentHistoryFilter === src ? 'active' : ''}`;
+          pill.textContent = platformLabels[src] || (src.charAt(0).toUpperCase() + src.slice(1));
+          pill.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentHistoryFilter = src;
+            renderHistoryView();
+          });
+          historyFilterPills.appendChild(pill);
+        });
+      }
+
+      // 3. Filter items
+      const filtered = currentHistoryFilter === 'all'
+        ? history
+        : history.filter(item => {
+            const src = item.sourcePlatform || (item.kind === 'rewrite' ? 'rewriter' : 'generic');
+            return src === currentHistoryFilter;
+          });
+
+      if (filtered.length === 0) {
+        historyList.innerHTML = '<div class="empty-state">No entries in this filter.</div>';
+        return;
+      }
+
+      // 4. Render rows with in-place copy
+      filtered.forEach(item => {
         const row = document.createElement('div');
         row.className = 'history-row';
         row.dataset.id = item.id;
 
-        const timeStr = new Date(item.copiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const kindBadge = (item.kind || 'digest').toUpperCase();
+        const src = item.sourcePlatform || (item.kind === 'rewrite' ? 'rewriter' : 'generic');
+        const label = platformLabels[src] || (item.kind || 'digest').toUpperCase();
+        const timeStr = formatRelativeTime(item.copiedAt);
+        const cleanFirstLine = (item.preview || '').replace(/^[#>\s*-]+/, '').trim().slice(0, 65);
 
         row.innerHTML = `
           <div class="history-meta">
-            <span class="history-kind">${kindBadge}</span>
-            <span class="history-time">${timeStr}</span>
+            <div class="history-source-wrap">
+              <span class="history-source-dot ${escapeHtml(src)}"></span>
+              <span class="history-source-label">${escapeHtml(label)}</span>
+            </div>
+            <span class="history-time">${escapeHtml(timeStr)}</span>
           </div>
-          <div class="history-preview">${escapeHtml(item.preview || '')}</div>
+          <div class="history-preview">${escapeHtml(cleanFirstLine || item.preview || '')}</div>
         `;
 
-        row.addEventListener('click', () => {
-          copyResultToClipboard(item.fullText, null, item.kind);
+        row.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          copyResultToClipboard(item.fullText, null, item.kind, false);
+
+          const oldBadge = row.querySelector('.history-row-copied-badge');
+          if (oldBadge) oldBadge.remove();
+          const badge = document.createElement('span');
+          badge.className = 'history-row-copied-badge';
+          badge.textContent = 'Copied!';
+          row.appendChild(badge);
           row.classList.add('copied');
-          setTimeout(() => row.classList.remove('copied'), 1500);
+          setTimeout(() => {
+            badge.remove();
+            row.classList.remove('copied');
+          }, 1500);
         });
 
         historyList.appendChild(row);

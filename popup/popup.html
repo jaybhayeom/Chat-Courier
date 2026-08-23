@@ -213,12 +213,12 @@
         <div class="output-card-header">
           <span class="output-title">Enhanced Prompt</span>
           <div class="output-actions">
-            <button id="btn-retry-rewrite" class="icon-btn-action" title="Retry / Re-roll" aria-label="Retry Rewrite">
+            <button id="btn-insert-rewrite" class="icon-btn-action primary" title="Insert into chat box" aria-label="Insert into chat box">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="1 4 1 10 7 10"/>
-                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <polyline points="19 12 12 19 5 12"/>
               </svg>
-              <span>Retry</span>
+              <span>Insert</span>
             </button>
             <button id="btn-copy-rewrite" class="icon-btn-action" title="Copy to Clipboard" aria-label="Copy Rewrite">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -226,6 +226,13 @@
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
               </svg>
               <span>Copy</span>
+            </button>
+            <button id="btn-retry-rewrite" class="icon-btn-action" title="Retry / Re-roll" aria-label="Retry Rewrite">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"/>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+              </svg>
+              <span>Retry</span>
             </button>
             <button id="btn-download-rewrite" class="icon-btn-action" title="Download as .md" aria-label="Download Rewrite">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -248,10 +255,15 @@
         <button id="btn-back-history" class="back-btn" title="Back to Toolbar" aria-label="Back">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <span class="view-sub-title">ChatCourier Clipboard History</span>
+        <span class="view-sub-title">Clipboard History</span>
         <button id="btn-clear-history" class="text-action-btn" title="Clear History">Clear</button>
       </div>
-      <p class="history-note">Local log of text generated and copied by ChatCourier.</p>
+      
+      <!-- Filter Pills (All + platforms with entries) -->
+      <div id="history-filter-pills" class="history-filter-pills">
+        <!-- Dynamically rendered pills -->
+      </div>
+
       <div id="history-list" class="history-list">
         <!-- Dynamically rendered rows -->
       </div>
