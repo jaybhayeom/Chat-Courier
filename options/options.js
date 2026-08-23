@@ -43,6 +43,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fileImportPersonas = document.getElementById('file-import-personas');
 
   // Elements: Templates & Preferences
+  const coreVoiceDirective = document.getElementById('core-voice-directive');
+  const btnResetCoreVoice = document.getElementById('btn-reset-core-voice');
   const templatesContainer = document.getElementById('templates-container');
   const temperatureSlider = document.getElementById('temperature');
   const tempValDisplay = document.getElementById('temp-val');
@@ -416,8 +418,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     fileImportPersonas.value = '';
   });
 
-  // ─── Template Registry Customizer (§9) ───
+  // ─── Template Registry Customizer (§9 & Addendum 3) ───
+  let coreVoiceBound = false;
+
   function renderTemplates(config) {
+    // 1. Populate Core Voice Directive
+    if (coreVoiceDirective) {
+      coreVoiceDirective.value = config.coreVoiceDirective !== null && config.coreVoiceDirective !== undefined
+        ? config.coreVoiceDirective
+        : (config.defaultCoreVoiceDirective || '');
+
+      if (!coreVoiceBound) {
+        coreVoiceBound = true;
+        coreVoiceDirective.addEventListener('change', () => {
+          const value = coreVoiceDirective.value.trim();
+          chrome.runtime.sendMessage({
+            action: 'SAVE_CORE_VOICE',
+            payload: { coreVoiceDirective: value || null }
+          }, () => {
+            showSavedFeedback('Core Voice Directive updated');
+            loadConfig();
+          });
+        });
+
+        if (btnResetCoreVoice) {
+          btnResetCoreVoice.addEventListener('click', () => {
+            if (confirm('Reset the Global Core Voice Directive to default? This will affect all 6 templates.')) {
+              chrome.runtime.sendMessage({ action: 'RESET_CORE_VOICE' }, () => {
+                showSavedFeedback('Core Voice Directive reset to default');
+                loadConfig();
+              });
+            }
+          });
+        }
+      }
+    }
+
+    // 2. Populate 6 Templates
     templatesContainer.innerHTML = '';
     const templates = config.templates || [];
 

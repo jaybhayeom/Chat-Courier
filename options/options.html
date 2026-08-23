@@ -198,10 +198,24 @@
 
       <!-- Sub-section C: Prompt Templates Registry -->
       <details class="cc-advanced-group" id="details-templates">
-        <summary>Prompt Templates Registry (All 6 Templates)</summary>
+        <summary>Prompt Templates Registry (Human Deliverable Voice)</summary>
         <div class="details-content">
-          <p class="section-desc">Customize system prompts for each template engine action. Reset any template back to its verified default at any time.</p>
-          <div id="templates-container" class="templates-list"></div>
+          <p class="section-desc">Customize system prompts for each template action. Every template is automatically prepended with the Core Voice Directive to guarantee human deliverable tone without conversational AI filler.</p>
+
+          <!-- Global Core Voice Directive Box (Addendum 3) -->
+          <div class="core-voice-card">
+            <div class="template-header">
+              <div class="template-title-wrap">
+                <span class="template-title">Global Core Voice Directive</span>
+                <span class="global-badge">PREPENDED TO ALL 6 TEMPLATES</span>
+              </div>
+              <button id="btn-reset-core-voice" class="btn btn-secondary btn-xs" title="Reset to verified default">Reset to Default</button>
+            </div>
+            <p class="form-hint" style="margin-bottom: 8px; color: var(--warning);">Note: Editing this directive affects the deliverable voice across all 6 templates simultaneously.</p>
+            <textarea id="core-voice-directive" class="textarea-input" rows="7" placeholder="Core voice directive..."></textarea>
+          </div>
+
+          <div id="templates-container" class="templates-list" style="margin-top: 12px;"></div>
         </div>
       </details>
 
