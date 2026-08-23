@@ -4,7 +4,13 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Elements: Profiles
+  // Elements: Quick Default Overview
+  const quickProfileSelect = document.getElementById('quick-profile-select');
+  const quickPersonaSelect = document.getElementById('quick-persona-select');
+  const quickThinkingToggle = document.getElementById('quick-thinking-toggle');
+  const quickThinkingDepth = document.getElementById('quick-thinking-depth');
+
+  // Elements: Profiles CRUD
   const profileList = document.getElementById('profile-list');
   const btnAddProfile = document.getElementById('btn-add-profile');
   const profileEditor = document.getElementById('profile-editor');
@@ -20,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnCancelProfile = document.getElementById('btn-cancel-profile');
   const btnSaveProfile = document.getElementById('btn-save-profile');
 
-  // Elements: Personas
+  // Elements: Personas CRUD
   const personaList = document.getElementById('persona-list');
   const btnAddPersona = document.getElementById('btn-add-persona');
   const personaEditor = document.getElementById('persona-editor');
@@ -36,12 +42,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnImportPersonas = document.getElementById('btn-import-personas');
   const fileImportPersonas = document.getElementById('file-import-personas');
 
-  // Elements: Templates & Settings
+  // Elements: Templates & Preferences
   const templatesContainer = document.getElementById('templates-container');
   const temperatureSlider = document.getElementById('temperature');
   const tempValDisplay = document.getElementById('temp-val');
   const maxClipboardEntries = document.getElementById('max-clipboard-entries');
+  const btnClearClipboardOptions = document.getElementById('btn-clear-clipboard-options');
   const toggleFastmode = document.getElementById('toggle-fastmode');
+  const toggleAutosuggest = document.getElementById('toggle-autosuggest');
   const toggleNotifications = document.getElementById('toggle-notifications');
   const toggleFab = document.getElementById('toggle-fab');
   const btnSaveAll = document.getElementById('btn-save-all');
@@ -466,6 +474,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ─── Quick Overview Dropdowns & Thinking Controls ───
+  function renderQuickOverview(config) {
+    const profiles = config.profiles || [];
+    const activeProfileId = config.activeProfileId || 'default';
+    const personas = config.personas || [];
+    const activePersonaId = config.activePersonaId || null;
+    const settings = config.settings || {};
+
+    // 1. Quick Profile Select
+    quickProfileSelect.innerHTML = '';
+    profiles.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.name || p.id} (${p.modelId || 'custom'})`;
+      if (p.id === activeProfileId) opt.selected = true;
+      quickProfileSelect.appendChild(opt);
+    });
+
+    // 2. Quick Persona Select
+    quickPersonaSelect.innerHTML = '<option value="">Standard (No persona)</option>';
+    personas.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      if (p.id === activePersonaId) opt.selected = true;
+      quickPersonaSelect.appendChild(opt);
+    });
+
+    // 3. Quick Thinking Mode Controls
+    quickThinkingToggle.checked = Boolean(settings.thinkingModeEnabled);
+    quickThinkingDepth.value = settings.thinkingModeDepth || 'standard';
+
+    // 4. Auto-Suggest Toggle
+    toggleAutosuggest.checked = Boolean(settings.autoSuggestEnabled);
+  }
+
+  quickProfileSelect.addEventListener('change', () => {
+    activateProfile(quickProfileSelect.value);
+  });
+
+  quickPersonaSelect.addEventListener('change', () => {
+    activatePersona(quickPersonaSelect.value || null);
+  });
+
   // ─── General Settings ───
   temperatureSlider.addEventListener('input', () => {
     tempValDisplay.textContent = temperatureSlider.value;
@@ -476,6 +528,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       temperature: parseFloat(temperatureSlider.value),
       maxClipboardEntries: parseInt(maxClipboardEntries.value, 10) || 30,
       fastMode: toggleFastmode.checked,
+      autoSuggestEnabled: toggleAutosuggest.checked,
+      thinkingModeEnabled: quickThinkingToggle.checked,
+      thinkingModeDepth: quickThinkingDepth.value,
       showNotifications: toggleNotifications.checked,
       fabEnabled: toggleFab.checked
     };
@@ -492,10 +547,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   btnSaveAll.addEventListener('click', saveGeneralSettings);
   toggleFastmode.addEventListener('change', saveGeneralSettings);
+  toggleAutosuggest.addEventListener('change', saveGeneralSettings);
+  quickThinkingToggle.addEventListener('change', saveGeneralSettings);
+  quickThinkingDepth.addEventListener('change', saveGeneralSettings);
   toggleNotifications.addEventListener('change', saveGeneralSettings);
   toggleFab.addEventListener('change', saveGeneralSettings);
   temperatureSlider.addEventListener('change', saveGeneralSettings);
   maxClipboardEntries.addEventListener('change', saveGeneralSettings);
+
+  if (btnClearClipboardOptions) {
+    btnClearClipboardOptions.addEventListener('click', () => {
+      if (confirm('Clear all ChatCourier clipboard history? This cannot be undone.')) {
+        chrome.runtime.sendMessage({ action: 'CLEAR_CLIPBOARD_HISTORY' }, (res) => {
+          if (res && res.success) {
+            showSavedFeedback('Clipboard history cleared');
+          }
+        });
+      }
+    });
+  }
 
   // ─── Config Loader & Boot ───
   function loadConfig() {
@@ -503,6 +573,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (response && response.success && response.config) {
         currentConfig = response.config;
 
+        renderQuickOverview(currentConfig);
         renderProfileList(currentConfig);
         renderPersonaList(currentConfig);
         renderTemplates(currentConfig);
@@ -512,13 +583,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         tempValDisplay.textContent = temperatureSlider.value;
         maxClipboardEntries.value = settings.maxClipboardEntries || 30;
         toggleFastmode.checked = Boolean(settings.fastMode);
+        toggleAutosuggest.checked = Boolean(settings.autoSuggestEnabled);
         toggleNotifications.checked = settings.showNotifications !== false;
         toggleFab.checked = settings.fabEnabled !== false;
 
-        // Route to hash if present (e.g. #personas)
-        if (window.location.hash === '#personas') {
-          const personasSection = document.getElementById('personas');
-          if (personasSection) personasSection.scrollIntoView({ behavior: 'smooth' });
+        // Route to hash if present (e.g. #personas, #profiles, #templates)
+        const hash = window.location.hash;
+        if (hash) {
+          const targetId = hash.startsWith('#details-') ? hash.slice(1) : `details-${hash.slice(1)}`;
+          const targetDetails = document.getElementById(targetId) || document.getElementById(hash.slice(1));
+          if (targetDetails) {
+            if (targetDetails.tagName.toLowerCase() === 'details') {
+              targetDetails.open = true;
+            }
+            targetDetails.scrollIntoView({ behavior: 'smooth' });
+          }
         }
       }
     });

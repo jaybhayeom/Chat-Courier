@@ -20,209 +20,268 @@
         </div>
         <div>
           <h1 class="brand-title">ChatCourier</h1>
-          <p class="brand-subtitle">Settings &amp; Connection Profiles</p>
+          <p class="brand-subtitle">Settings &amp; Configuration</p>
         </div>
       </div>
       <div class="version-tag">v2.0.0</div>
     </header>
 
     <!-- ============================================================
-         Section 1: Connection Profiles
+         3.1 Default Section (Always Visible, Minimal)
          ============================================================ -->
-    <section class="settings-section" id="section-profiles">
-      <h2 class="section-title">Connection Profiles</h2>
-      <p class="section-desc">Each profile holds an API endpoint, model ID, and API key. Switch between models and providers seamlessly.</p>
-
-      <div id="profile-list" class="item-list">
-        <!-- Dynamically rendered -->
-      </div>
-
-      <button id="btn-add-profile" class="btn btn-secondary btn-sm" style="margin-top: 8px;">+ Add Profile</button>
-
-      <!-- Profile Editor Modal / Inline Form -->
-      <div id="profile-editor" class="editor-panel hidden">
-        <h3 id="profile-editor-title" class="editor-title">Edit Profile</h3>
-        <input type="hidden" id="editor-profile-id">
-
-        <div class="form-group">
-          <label for="editor-profile-name" class="form-label">Profile Name</label>
-          <input type="text" id="editor-profile-name" class="text-input" placeholder="e.g. Groq — Fast">
+    <section class="settings-card default-overview-card">
+      <h2 class="card-title">Quick Settings</h2>
+      
+      <!-- 1. Active Connection Profile Selector -->
+      <div class="form-row">
+        <div class="form-row-info">
+          <label for="quick-profile-select" class="form-label">Active Connection Profile</label>
+          <p class="form-hint">Choose which provider and model powers your summaries and rewrites.</p>
         </div>
-
-        <div class="form-group">
-          <label for="editor-profile-endpoint" class="form-label">API Endpoint (OpenAI-Compatible)</label>
-          <input type="text" id="editor-profile-endpoint" class="text-input" placeholder="https://api.groq.com/openai/v1">
-          <p class="form-hint">Works with Groq, OpenRouter, Together AI, OpenAI, Mistral, and local endpoints like Ollama (http://localhost:11434/v1).</p>
-        </div>
-
-        <div class="form-group">
-          <label for="editor-profile-model" class="form-label">Model ID</label>
-          <input type="text" id="editor-profile-model" class="text-input" placeholder="llama-3.3-70b-versatile">
-          <p class="form-hint">Exact model ID string (e.g. llama-3.3-70b-versatile, gpt-4o, claude-3-5-sonnet, deepseek-chat).</p>
-        </div>
-
-        <div class="form-group">
-          <label for="editor-profile-apikey" class="form-label">API Key</label>
-          <div class="input-with-button">
-            <input type="password" id="editor-profile-apikey" class="text-input" placeholder="sk-... or gsk_..." autocomplete="off">
-            <button id="btn-toggle-key" class="btn btn-secondary btn-sm" title="Show/Hide">View</button>
-          </div>
-        </div>
-
-        <div class="editor-actions">
-          <button id="btn-test-connection" class="btn btn-secondary">Test Connection</button>
-          <div id="test-status" class="test-status"></div>
-          <div class="editor-btn-group">
-            <button id="btn-cancel-profile" class="btn btn-secondary btn-sm">Cancel</button>
-            <button id="btn-save-profile" class="btn btn-primary btn-sm">Save Profile</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================================
-         Section 2: Custom Personas (Settings-Only CRUD)
-         ============================================================ -->
-    <section class="settings-section" id="personas">
-      <div class="section-header-row">
-        <div>
-          <h2 class="section-title">Personas</h2>
-          <p class="section-desc">Create custom assistant personas with tailored instructions. Applied directly in the popup or inserted into the active chat composer.</p>
-        </div>
-        <div class="section-header-actions">
-          <button id="btn-export-personas" class="btn btn-secondary btn-xs" title="Export personas to JSON">Export JSON</button>
-          <button id="btn-import-personas" class="btn btn-secondary btn-xs" title="Import personas from JSON">Import JSON</button>
-          <input type="file" id="file-import-personas" accept=".json" class="hidden">
+        <div class="form-row-control">
+          <select id="quick-profile-select" class="select-input"></select>
         </div>
       </div>
 
-      <div id="persona-list" class="item-list">
-        <!-- Dynamically rendered -->
-      </div>
-
-      <button id="btn-add-persona" class="btn btn-secondary btn-sm" style="margin-top: 8px;">+ Add Persona</button>
-
-      <!-- Persona Editor -->
-      <div id="persona-editor" class="editor-panel hidden">
-        <h3 id="persona-editor-title" class="editor-title">Edit Persona</h3>
-        <input type="hidden" id="editor-persona-id">
-
-        <div class="form-group">
-          <label for="editor-persona-name" class="form-label">Persona Name</label>
-          <input type="text" id="editor-persona-name" class="text-input" placeholder="e.g. Senior Software Architect">
+      <!-- 2. Active Persona Selector -->
+      <div class="form-row">
+        <div class="form-row-info">
+          <label for="quick-persona-select" class="form-label">Active Persona</label>
+          <p class="form-hint">Applied automatically to summaries and prompt rewrites.</p>
         </div>
-
-        <div class="form-group">
-          <label for="editor-persona-desc" class="form-label">Short Description</label>
-          <input type="text" id="editor-persona-desc" class="text-input" placeholder="e.g. Focuses on system scalability and clean code">
-        </div>
-
-        <div class="form-group">
-          <label for="editor-persona-instruction" class="form-label">Instruction Block (Prompt Directives)</label>
-          <textarea id="editor-persona-instruction" class="textarea-input" rows="4" placeholder="You are a senior architect..."></textarea>
-          <p class="form-hint">These instructions are prepended to outgoing template executions when this persona is active.</p>
-        </div>
-
-        <div class="form-group">
-          <label for="editor-persona-platform" class="form-label">Preferred Platform</label>
-          <select id="editor-persona-platform" class="select-input">
-            <option value="any">Any Platform (Default)</option>
-            <option value="chatgpt">ChatGPT</option>
-            <option value="claude">Claude</option>
-            <option value="gemini">Gemini</option>
-            <option value="perplexity">Perplexity</option>
-            <option value="deepseek">DeepSeek</option>
+        <div class="form-row-control">
+          <select id="quick-persona-select" class="select-input">
+            <option value="">Standard (No persona)</option>
           </select>
         </div>
+      </div>
 
-        <div class="editor-actions">
-          <div class="editor-btn-group" style="margin-left: auto;">
-            <button id="btn-cancel-persona" class="btn btn-secondary btn-sm">Cancel</button>
-            <button id="btn-save-persona" class="btn btn-primary btn-sm">Save Persona</button>
-          </div>
+      <!-- 3. Thinking Mode: On/Off + Depth Selector -->
+      <div class="form-row">
+        <div class="form-row-info">
+          <label class="form-label">Thinking Mode</label>
+          <p class="form-hint">Instructs the model to double-check reasoning before answering.</p>
+        </div>
+        <div class="form-row-control thinking-control-group">
+          <select id="quick-thinking-depth" class="select-input" style="max-width: 140px;">
+            <option value="quick">Quick Check</option>
+            <option value="standard">Standard</option>
+            <option value="deep">Deep Review</option>
+          </select>
+          <label class="switch">
+            <input type="checkbox" id="quick-thinking-toggle">
+            <span class="slider"></span>
+          </label>
         </div>
       </div>
     </section>
 
-    <!-- ============================================================
-         Section 3: Template Registry & Prompt Customizer
-         ============================================================ -->
-    <details class="settings-section advanced-section" id="section-templates">
-      <summary class="section-title clickable">
-        Template Registry &amp; Prompt Customizer
-        <span class="chevron">▶</span>
-      </summary>
-
-      <div class="advanced-body">
-        <p class="section-desc">Customize system prompts for each template engine action. Reset any template back to its verified default at any time.</p>
-        
-        <div id="templates-container" class="templates-list">
-          <!-- Dynamically generated per template in registry -->
-        </div>
-      </div>
-    </details>
+    <!-- Advanced Section Header -->
+    <div class="advanced-divider-header">
+      <h2 class="advanced-main-title">Advanced Settings</h2>
+      <p class="advanced-main-desc">Manage profiles, custom personas, system prompt templates, and scraping preferences.</p>
+    </div>
 
     <!-- ============================================================
-         Section 4: General & Advanced Preferences
+         3.2 Behind Disclosure: Native <details class="cc-advanced-group">
          ============================================================ -->
-    <details class="settings-section advanced-section" id="section-preferences">
-      <summary class="section-title clickable">
-        General &amp; Advanced Preferences
-        <span class="chevron">▶</span>
-      </summary>
+    <div class="advanced-groups-container">
+      
+      <!-- Sub-section A: Connection Profiles CRUD -->
+      <details class="cc-advanced-group" id="details-profiles">
+        <summary>Connection Profiles (Full Management)</summary>
+        <div class="details-content">
+          <p class="section-desc">Add, edit, test, and remove API endpoints and keys for Groq, OpenRouter, Together, OpenAI, or local Ollama.</p>
+          <div id="profile-list" class="item-list"></div>
+          <button id="btn-add-profile" class="btn btn-secondary btn-sm" style="margin-top: 8px;">+ Add Profile</button>
 
-      <div class="advanced-body">
-        <div class="form-group">
-          <label for="temperature" class="form-label">Temperature: <span id="temp-val">0.2</span></label>
-          <input type="range" id="temperature" min="0.0" max="1.0" step="0.05" value="0.2" class="range-slider">
-          <p class="form-hint">Lower values (0.1–0.2) produce deterministic, high-fidelity context digests.</p>
-        </div>
+          <!-- Profile Editor Panel -->
+          <div id="profile-editor" class="editor-panel hidden">
+            <h3 id="profile-editor-title" class="editor-title">Edit Profile</h3>
+            <input type="hidden" id="editor-profile-id">
 
-        <div class="form-group">
-          <label for="max-clipboard-entries" class="form-label">Max Clipboard History Items</label>
-          <input type="number" id="max-clipboard-entries" min="5" max="100" value="30" class="text-input" style="max-width: 120px;">
-          <p class="form-hint">Number of recent ChatCourier copies saved in local memory.</p>
-        </div>
+            <div class="form-group">
+              <label for="editor-profile-name" class="form-label">Profile Name</label>
+              <input type="text" id="editor-profile-name" class="text-input" placeholder="e.g. Groq — Fast">
+            </div>
 
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-title">Fast Mode (Skip Virtualized DOM Scroll Sweep)</div>
-            <div class="toggle-desc">Extracts only currently visible messages for speed. Leave OFF for complete thread capture.</div>
+            <div class="form-group">
+              <label for="editor-profile-endpoint" class="form-label">API Endpoint (OpenAI-Compatible)</label>
+              <input type="text" id="editor-profile-endpoint" class="text-input" placeholder="https://api.groq.com/openai/v1">
+              <p class="form-hint">Works with Groq, OpenRouter, Together AI, OpenAI, Mistral, and local endpoints like Ollama (http://localhost:11434/v1).</p>
+            </div>
+
+            <div class="form-group">
+              <label for="editor-profile-model" class="form-label">Model ID</label>
+              <input type="text" id="editor-profile-model" class="text-input" placeholder="llama-3.3-70b-versatile">
+              <p class="form-hint">Exact model ID string (e.g. llama-3.3-70b-versatile, gpt-4o, claude-3-5-sonnet, deepseek-chat).</p>
+            </div>
+
+            <div class="form-group">
+              <label for="editor-profile-apikey" class="form-label">API Key</label>
+              <div class="input-with-button">
+                <input type="password" id="editor-profile-apikey" class="text-input" placeholder="sk-... or gsk_..." autocomplete="off">
+                <button id="btn-toggle-key" class="btn btn-secondary btn-sm" title="Show/Hide">View</button>
+              </div>
+            </div>
+
+            <div class="editor-actions">
+              <button id="btn-test-connection" class="btn btn-secondary">Test Connection</button>
+              <div id="test-status" class="test-status"></div>
+              <div class="editor-btn-group">
+                <button id="btn-cancel-profile" class="btn btn-secondary btn-sm">Cancel</button>
+                <button id="btn-save-profile" class="btn btn-primary btn-sm">Save Profile</button>
+              </div>
+            </div>
           </div>
-          <label class="switch">
-            <input type="checkbox" id="toggle-fastmode">
-            <span class="slider"></span>
-          </label>
         </div>
+      </details>
 
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-title">Desktop Notifications</div>
-            <div class="toggle-desc">Show notification when digest synthesis or prompt rewrite finishes.</div>
+      <!-- Sub-section B: Personas CRUD + Import/Export -->
+      <details class="cc-advanced-group" id="details-personas">
+        <summary>Personas (Creator &amp; JSON Import/Export)</summary>
+        <div class="details-content">
+          <div class="section-header-row">
+            <p class="section-desc">Create custom assistant personas with tailored instructions. Managed exclusively here in Settings.</p>
+            <div class="section-header-actions">
+              <button id="btn-export-personas" class="btn btn-secondary btn-xs" title="Export personas to JSON">Export JSON</button>
+              <button id="btn-import-personas" class="btn btn-secondary btn-xs" title="Import personas from JSON">Import JSON</button>
+              <input type="file" id="file-import-personas" accept=".json" class="hidden">
+            </div>
           </div>
-          <label class="switch">
-            <input type="checkbox" id="toggle-notifications" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
 
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-title">Enable In-Tab Floating Companion (FAB)</div>
-            <div class="toggle-desc">Show the draggable orb on supported LLM chat pages.</div>
+          <div id="persona-list" class="item-list"></div>
+          <button id="btn-add-persona" class="btn btn-secondary btn-sm" style="margin-top: 8px;">+ Add Persona</button>
+
+          <!-- Persona Editor -->
+          <div id="persona-editor" class="editor-panel hidden">
+            <h3 id="persona-editor-title" class="editor-title">Edit Persona</h3>
+            <input type="hidden" id="editor-persona-id">
+
+            <div class="form-group">
+              <label for="editor-persona-name" class="form-label">Persona Name</label>
+              <input type="text" id="editor-persona-name" class="text-input" placeholder="e.g. Senior Software Architect">
+            </div>
+
+            <div class="form-group">
+              <label for="editor-persona-desc" class="form-label">Short Description</label>
+              <input type="text" id="editor-persona-desc" class="text-input" placeholder="e.g. Focuses on system scalability and clean code">
+            </div>
+
+            <div class="form-group">
+              <label for="editor-persona-instruction" class="form-label">Instruction Block (Prompt Directives)</label>
+              <textarea id="editor-persona-instruction" class="textarea-input" rows="4" placeholder="You are a senior architect..."></textarea>
+              <p class="form-hint">These instructions are prepended to outgoing template executions when this persona is active.</p>
+            </div>
+
+            <div class="form-group">
+              <label for="editor-persona-platform" class="form-label">Preferred Platform</label>
+              <select id="editor-persona-platform" class="select-input">
+                <option value="any">Any Platform (Default)</option>
+                <option value="chatgpt">ChatGPT</option>
+                <option value="claude">Claude</option>
+                <option value="gemini">Gemini</option>
+                <option value="perplexity">Perplexity</option>
+                <option value="deepseek">DeepSeek</option>
+              </select>
+            </div>
+
+            <div class="editor-actions">
+              <div class="editor-btn-group" style="margin-left: auto;">
+                <button id="btn-cancel-persona" class="btn btn-secondary btn-sm">Cancel</button>
+                <button id="btn-save-persona" class="btn btn-primary btn-sm">Save Persona</button>
+              </div>
+            </div>
           </div>
-          <label class="switch">
-            <input type="checkbox" id="toggle-fab" checked>
-            <span class="slider"></span>
-          </label>
         </div>
+      </details>
 
-        <div class="shortcut-box">
-          <div class="shortcut-label">In-Tab Shortcut</div>
-          <div class="shortcut-key">Alt + Shift + C</div>
+      <!-- Sub-section C: Prompt Templates Registry -->
+      <details class="cc-advanced-group" id="details-templates">
+        <summary>Prompt Templates Registry (All 6 Templates)</summary>
+        <div class="details-content">
+          <p class="section-desc">Customize system prompts for each template engine action. Reset any template back to its verified default at any time.</p>
+          <div id="templates-container" class="templates-list"></div>
         </div>
-      </div>
-    </details>
+      </details>
+
+      <!-- Sub-section D: Clipboard History Settings -->
+      <details class="cc-advanced-group" id="details-clipboard">
+        <summary>Clipboard History Settings</summary>
+        <div class="details-content">
+          <div class="form-group">
+            <label for="max-clipboard-entries" class="form-label">Max Clipboard History Items</label>
+            <input type="number" id="max-clipboard-entries" min="5" max="100" value="30" class="text-input" style="max-width: 120px;">
+            <p class="form-hint">Number of recent ChatCourier copies saved in local memory (default 30).</p>
+          </div>
+          <div style="margin-top: 14px;">
+            <button id="btn-clear-clipboard-options" class="btn btn-secondary btn-sm danger">Clear All Clipboard History</button>
+          </div>
+        </div>
+      </details>
+
+      <!-- Sub-section E: General & Scraping Preferences -->
+      <details class="cc-advanced-group" id="details-preferences">
+        <summary>General &amp; Scraping Preferences</summary>
+        <div class="details-content">
+          <div class="form-group">
+            <label for="temperature" class="form-label">Temperature: <span id="temp-val">0.2</span></label>
+            <input type="range" id="temperature" min="0.0" max="1.0" step="0.05" value="0.2" class="range-slider">
+            <p class="form-hint">Lower values (0.1–0.2) produce deterministic, high-fidelity context digests.</p>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-title">Fast Mode (Skip Virtualized DOM Scroll Sweep)</div>
+              <div class="toggle-desc">Extracts only currently visible messages for speed. Leave OFF for complete thread capture.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-fastmode">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-title">Auto-Suggested Next Steps</div>
+              <div class="toggle-desc">Automatically append 3 AI-suggested next steps to Context Handoff Digests.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-autosuggest">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-title">Desktop Notifications</div>
+              <div class="toggle-desc">Show notification when digest synthesis or prompt rewrite finishes.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-notifications" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-title">Enable In-Tab Floating Companion (FAB)</div>
+              <div class="toggle-desc">Show the draggable orb on supported LLM chat pages.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-fab" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="shortcut-box">
+            <div class="shortcut-label">In-Tab Shortcut</div>
+            <div class="shortcut-key">Alt + Shift + C</div>
+          </div>
+        </div>
+      </details>
+
+    </div>
 
     <!-- Save Footer -->
     <footer class="action-footer">

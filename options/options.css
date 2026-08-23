@@ -90,13 +90,142 @@ body {
 }
 
 /* ============================================================
-   Settings Sections
+   Settings Sections & Cards
    ============================================================ */
+.settings-card,
 .settings-section {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 18px;
+}
+
+.default-overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--bg-elevated);
+  border-color: var(--border-accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.form-row:last-of-type {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.form-row-info {
+  flex: 1;
+}
+
+.form-row-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.thinking-control-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.advanced-divider-header {
+  margin-top: 8px;
+  margin-bottom: -6px;
+}
+
+.advanced-main-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.advanced-main-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ============================================================
+   Advanced Details & Disclosures
+   ============================================================ */
+.advanced-groups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cc-advanced-group {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.cc-advanced-group[open] {
+  border-color: var(--border-accent);
+}
+
+.cc-advanced-group > summary {
+  padding: 13px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-elevated);
+  transition: background 0.15s ease;
+  list-style: none;
+}
+
+.cc-advanced-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.cc-advanced-group > summary:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cc-advanced-group > summary::after {
+  content: '▶';
+  font-size: 10px;
+  color: var(--text-dim);
+  transition: transform 0.2s ease;
+}
+
+.cc-advanced-group[open] > summary::after {
+  transform: rotate(90deg);
+  color: var(--accent-light);
+}
+
+.cc-advanced-group .details-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .section-header-row {
@@ -122,7 +251,7 @@ body {
 .section-desc {
   font-size: 12px;
   color: var(--text-muted);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   line-height: 1.45;
 }
 
