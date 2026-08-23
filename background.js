@@ -10,6 +10,7 @@ const DEFAULT_CORE_VOICE_DIRECTIVE = `You are producing a deliverable that a hum
 - Never hedge, apologize, or add disclaimers about accuracy or limitations unless the task explicitly asks for a confidence assessment.
 - No emoji, anywhere, for any reason — not as bullets, not as section markers, not for emphasis. Use plain text headers and standard markdown structure only where the task calls for structure at all.
 - Write in the voice of a skilled human professional doing this work directly — a senior prompt engineer, a technical writer, an experienced colleague — never in the voice of an AI narrating what it is doing.
+- Point of View: Write strictly from the USER's perspective addressing the AI ("You are...", "Your task is...", "Requirements & Constraints:"). When producing summaries, deliver a finished professional document.
 - This is a draft for a human to review before it is used or sent onward. You are producing material for them to act on, not acting on their behalf. Do not narrate an in-progress process ("I will now...", "Next I'll...") — hand off a finished piece.`;
 
 const DEFAULT_TEMPLATES = [
@@ -38,14 +39,13 @@ If the session's content doesn't cleanly fill one of these sections, omit that s
   {
     id: 'rewriter',
     label: 'Prompt Rewriter',
-    defaultPrompt: `You are refining a colleague's draft instructions before they get sent to an AI system. Rewrite the draft into a clearer, more effective version while preserving its original intent exactly — do not change what is being asked for, only how clearly and completely it is expressed.
+    defaultPrompt: `You are an expert prompt engineer. Your job is to take a user's rough draft prompt and expand, enrich, and rewrite it from the USER's perspective into a comprehensive, professional master prompt ready to be sent directly to an AI.
 
-Add, where genuinely missing from the draft:
-- explicit rules or constraints that were implied but left unstated
-- a step-by-step task breakdown, if the request has multiple parts
-- any context the draft assumes but doesn't actually state
-
-Do not answer the prompt. Do not add commentary about what you changed or why. Return only the rewritten prompt text, ready to send as-is.`,
+Requirements:
+1. User Perspective: Write strictly from the USER's point of view directing an AI assistant (e.g., "Act as an expert...", "Your task is to...", "Core Requirements:", "Step-by-Step Instructions:"). Never speak from an AI or third-person perspective (do not write "The user wants...").
+2. Deeply Extend & Expand: Add the necessary architectural depth, domain best practices, explicit functional constraints, edge-case handling, and output format specifications that the draft implies.
+3. Structure: Organize the rewritten prompt with clear Markdown sections (Role, Objective, Context, Constraints, Step-by-Step Execution, Expected Deliverables).
+4. Zero Meta-Commentary: Do NOT answer the prompt, do NOT explain what you changed, and do NOT include conversational greetings. Return ONLY the rewritten prompt ready to send.`,
     userOverride: null
   },
   {
@@ -509,6 +509,14 @@ async function executeTemplateRun(payload) {
 
   const systemPrompt = coreVoice ? `${coreVoice}\n\n${taskPrompt}` : taskPrompt;
 
+  // Format user content framing so target LLMs properly execute without confusion
+  let formattedUserContent = userContent.trim();
+  if (templateId === 'rewriter') {
+    formattedUserContent = `[USER DRAFT PROMPT TO EXTEND & REWRITE]:\n"""\n${userContent.trim()}\n"""\n\nTask: Expand and rewrite the draft prompt above from the USER's point of view into an expert-level, comprehensive master prompt. Include role definition, detailed requirements, step-by-step instructions, constraints, and output specifications. Output ONLY the rewritten prompt ready to send to an AI.`;
+  } else if (templateId === 'digest') {
+    formattedUserContent = `[CONVERSATION TRANSCRIPT TO SUMMARIZE FOR HANDOFF]:\n\n${userContent.trim()}\n\n---\nSynthesize a faithful, high-density Context Handoff Digest based strictly on the transcript above following the specified section headers.`;
+  }
+
   const endpoint = activeProfile.endpoint || 'https://api.groq.com/openai/v1';
   const apiKey = activeProfile.apiKey;
   const model = activeProfile.modelId;
@@ -518,7 +526,7 @@ async function executeTemplateRun(payload) {
     apiKey,
     model,
     systemPrompt,
-    userContent,
+    userContent: formattedUserContent,
     temperature: settings.temperature,
     maxTokens: settings.maxTokens
   });
