@@ -3,63 +3,77 @@
  * Manifest V3 Background Service Worker & Unified Template Execution Engine
  */
 
+const DEFAULT_CORE_VOICE_DIRECTIVE = `You are producing a deliverable that a human user will read, edit, and use directly — not writing a conversational reply. Follow these rules without exception:
+
+- Output ONLY the requested deliverable. No preamble, no closing remarks, no "Here is...", "Sure,", "I hope this helps!", or "Let me know if...". Start directly with the content itself and end when the content ends.
+- Never refer to yourself, your capabilities, or your nature as an AI, model, or assistant. Never write "As an AI...", "I've generated...", "based on my analysis...", or any similar self-referential framing.
+- Never hedge, apologize, or add disclaimers about accuracy or limitations unless the task explicitly asks for a confidence assessment.
+- No emoji, anywhere, for any reason — not as bullets, not as section markers, not for emphasis. Use plain text headers and standard markdown structure only where the task calls for structure at all.
+- Write in the voice of a skilled human professional doing this work directly — a senior prompt engineer, a technical writer, an experienced colleague — never in the voice of an AI narrating what it is doing.
+- This is a draft for a human to review before it is used or sent onward. You are producing material for them to act on, not acting on their behalf. Do not narrate an in-progress process ("I will now...", "Next I'll...") — hand off a finished piece.`;
+
 const DEFAULT_TEMPLATES = [
   {
     id: 'digest',
     label: 'Context Handoff Digest',
-    defaultPrompt: `You are ChatCourier, an elite LLM Context Handoff Engine.
-Your mission is to ingest a conversation transcript from another AI platform (ChatGPT, Claude, Gemini, Perplexity, DeepSeek) and synthesize a high-density, structured Context Handoff Digest. This digest will be passed directly to another frontier LLM as prompt context to seamlessly continue work without loss of fidelity.
+    defaultPrompt: `You are writing a project handoff document for someone continuing this work. Produce a faithful, complete record of what happened in the session — do not invent details, do not editorialize about quality, and do not comment on the process of writing the digest itself.
 
-You must format your response with the following 4 structured sections in clean GitHub-flavored Markdown:
+Structure the output under these plain-text headers, in this order:
 
-# Context Handoff Digest: [Topic / Project Name]
-> **Source Platform**: [Platform Name] | **Session Date**: [Date] | **Turns Analyzed**: [Turn Count]
+Goal
+  What the session set out to accomplish, in two or three sentences.
 
-## 1. Primary Goal & High-Level Context
-- Concise explanation of the core problem, objective, user intent, and high-level architecture.
+Key Decisions
+  Concrete decisions made and the constraints or rationale behind each, as a short list. Skip this section entirely if none were made — do not pad it with restated goals.
 
-## 2. Key Decisions Made & Architectural Constraints
-- Technical choices agreed upon (libraries, algorithms, conventions, design patterns).
-- Hard constraints, non-negotiable requirements, or rejected alternatives with reasons.
+Artifacts & Data
+  Any code, schemas, file structures, or concrete data produced, quoted directly where short, described precisely where long.
 
-## 3. Active Code, Schemas & Working Data Artifacts
-- Output all working code snippets, schemas, API contracts, configs, or data structures established in the session.
-- Preserve exact syntax, language tags, and symbol names.
+Pending Tasks
+  What remains open, as an actionable checklist — not vague summary statements like "more work is needed."
 
-## 4. Pending Tasks & Immediate Next Steps
-- Concrete checklist of remaining tasks, unfinished logic, edge cases to handle, and direct prompts for the receiving LLM to execute next.
-
-Maintain high technical density. Do not include conversational filler.`,
+If the session's content doesn't cleanly fill one of these sections, omit that section rather than inventing content to complete it.`,
     userOverride: null
   },
   {
     id: 'rewriter',
     label: 'Prompt Rewriter',
-    defaultPrompt: `You are a prompt-engineering assistant. Take the user's rough draft prompt and rewrite it into a clearer, more effective version. Preserve the original intent exactly. Add: (1) explicit rules/constraints implied but unstated in the draft, (2) a step-by-step task breakdown where the task has multiple parts, (3) any missing context the model would need to succeed. Do not answer the prompt — only rewrite it. Return only the rewritten prompt in clean Markdown, nothing else.`,
+    defaultPrompt: `You are refining a colleague's draft instructions before they get sent to an AI system. Rewrite the draft into a clearer, more effective version while preserving its original intent exactly — do not change what is being asked for, only how clearly and completely it is expressed.
+
+Add, where genuinely missing from the draft:
+- explicit rules or constraints that were implied but left unstated
+- a step-by-step task breakdown, if the request has multiple parts
+- any context the draft assumes but doesn't actually state
+
+Do not answer the prompt. Do not add commentary about what you changed or why. Return only the rewritten prompt text, ready to send as-is.`,
     userOverride: null
   },
   {
     id: 'thinking_quick',
     label: 'Thinking Mode: Quick Check',
-    defaultPrompt: `[Thinking Mode: Quick Check]\nBriefly double-check your answer for obvious errors, invalid assumptions, or omitted constraints before responding.\n`,
+    defaultPrompt: `Before finalizing your answer, briefly re-check it for obvious errors or gaps, then proceed. Keep this check quick — a single pass, not an extended review.`,
     userOverride: null
   },
   {
     id: 'thinking_standard',
     label: 'Thinking Mode: Standard Review',
-    defaultPrompt: `[Thinking Mode: Standard Review]\nWork through this sequentially. Do a full top-to-bottom review of the relevant context. Explicitly check for errors, edge cases, and architectural consistency before concluding.\n`,
+    defaultPrompt: `Work through this sequentially rather than jumping to a conclusion. Once you have a draft answer, do a full top-to-bottom review of the relevant context to confirm nothing was missed, and explicitly check for errors or edge cases before finalizing your response.`,
     userOverride: null
   },
   {
     id: 'thinking_deep',
-    label: 'Thinking Mode: Deep Multi-Pass Audit',
-    defaultPrompt: `[Thinking Mode: Deep Multi-Pass Audit]\nExecute a thorough multi-pass review:\n1. Deconstruct the problem and identify all implicit boundary conditions.\n2. Formulate reasoning hypotheses and test against non-obvious failure modes.\n3. Explicitly audit against potential regressions and anti-patterns.\n4. Present the verified, high-density solution.\n`,
+    label: 'Thinking Mode: Deep Review',
+    defaultPrompt: `Work through this sequentially, in full. After forming an initial answer, run a second, independent pass over the same material specifically looking for what the first pass might have missed. Explicitly enumerate edge cases or failure modes relevant to the task, and confirm the answer holds up against each one before finalizing. Prioritize catching a real gap over finishing quickly.`,
     userOverride: null
   },
   {
     id: 'auto_suggest',
     label: 'Auto-Suggested Next Steps',
-    defaultPrompt: `\n\n---\n### Suggested Next Steps to Consider (AI-generated, not part of the session record)\nBased on the session transcript above, here are 3 high-impact follow-up ideas or architectural directions to consider exploring next:\n1. [Suggestion 1]\n2. [Suggestion 2]\n3. [Suggestion 3]`,
+    defaultPrompt: `Add one final section, clearly separated from the rest of the document, titled exactly:
+
+Suggested Next Steps (generated, not part of the session record)
+
+Under it, list exactly three next steps grounded specifically in what the session actually covered — not generic advice that could apply to any project. Keep each to one or two sentences. Do not blend this section's tone or formatting with the sections above it — it must read as clearly separable from the faithful digest, since that separation is what keeps the rest of the document trustworthy.`,
     userOverride: null
   }
 ];
@@ -94,6 +108,7 @@ const DEFAULT_CONFIG = {
   activeProfileId: 'default',
   personas: DEFAULT_PERSONAS,
   activePersonaId: null,
+  coreVoiceDirective: null,
   templates: DEFAULT_TEMPLATES,
   clipboardHistory: [],
   settings: {
@@ -130,11 +145,15 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
     // Migrate templates
     let templates = stored.templates || DEFAULT_TEMPLATES;
-    // Ensure all default templates exist in templates list
-    DEFAULT_TEMPLATES.forEach(dt => {
-      if (!templates.some(t => t.id === dt.id)) {
-        templates.push(dt);
-      }
+    // Ensure all default templates exist and have updated defaultPrompt
+    templates = DEFAULT_TEMPLATES.map(dt => {
+      const existing = (stored.templates || []).find(t => t.id === dt.id);
+      return {
+        id: dt.id,
+        label: dt.label,
+        defaultPrompt: dt.defaultPrompt,
+        userOverride: existing ? existing.userOverride : null
+      };
     });
 
     // Migrate customSystemPrompt into digest template if present
@@ -150,6 +169,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       activeProfileId: stored.activeProfileId || 'default',
       personas: stored.personas || DEFAULT_PERSONAS,
       activePersonaId: stored.activePersonaId || null,
+      coreVoiceDirective: stored.coreVoiceDirective !== undefined ? stored.coreVoiceDirective : null,
       templates,
       clipboardHistory: stored.clipboardHistory || [],
       settings
@@ -431,6 +451,7 @@ async function executeTemplateRun(payload) {
     activeProfileId: stored.activeProfileId || 'default',
     personas: stored.personas || DEFAULT_PERSONAS,
     activePersonaId: stored.activePersonaId || null,
+    coreVoiceDirective: stored.coreVoiceDirective !== undefined ? stored.coreVoiceDirective : null,
     templates: stored.templates || DEFAULT_TEMPLATES,
     clipboardHistory: stored.clipboardHistory || [],
     settings: { ...DEFAULT_CONFIG.settings, ...(stored.settings || {}) }
@@ -449,7 +470,7 @@ async function executeTemplateRun(payload) {
   }
 
   // 1. Resolve base template
-  let systemPrompt = resolveTemplatePrompt(config.templates, templateId);
+  let taskPrompt = resolveTemplatePrompt(config.templates, templateId);
 
   // 2. Chain Thinking Mode depth template if enabled or requested
   const thinkingEnabled = extra.thinkingDepth !== undefined ? Boolean(extra.thinkingDepth) : settings.thinkingModeEnabled;
@@ -458,7 +479,7 @@ async function executeTemplateRun(payload) {
     const depthTemplateId = `thinking_${depth}`;
     const thinkingPrompt = resolveTemplatePrompt(config.templates, depthTemplateId);
     if (thinkingPrompt) {
-      systemPrompt = `${thinkingPrompt}\n\n${systemPrompt}`;
+      taskPrompt = `${thinkingPrompt}\n\n${taskPrompt}`;
     }
   }
 
@@ -468,7 +489,7 @@ async function executeTemplateRun(payload) {
     const personas = config.personas || DEFAULT_PERSONAS;
     const persona = personas.find(p => p.id === personaId);
     if (persona && persona.instructionBlock) {
-      systemPrompt = `[Active Persona: ${persona.name}]\n${persona.instructionBlock}\n\n${systemPrompt}`;
+      taskPrompt = `[Active Persona: ${persona.name}]\n${persona.instructionBlock}\n\n${taskPrompt}`;
     }
   }
 
@@ -477,9 +498,16 @@ async function executeTemplateRun(payload) {
   if (autoSuggestEnabled && templateId === 'digest') {
     const autoSuggestPrompt = resolveTemplatePrompt(config.templates, 'auto_suggest');
     if (autoSuggestPrompt) {
-      systemPrompt = `${systemPrompt}\n\n${autoSuggestPrompt}`;
+      taskPrompt = `${taskPrompt}\n\n${autoSuggestPrompt}`;
     }
   }
+
+  // 5. Prepend Global Core Voice Directive ahead of all templates (Addendum 3)
+  const coreVoice = (config.coreVoiceDirective !== undefined && config.coreVoiceDirective !== null)
+    ? config.coreVoiceDirective
+    : DEFAULT_CORE_VOICE_DIRECTIVE;
+
+  const systemPrompt = coreVoice ? `${coreVoice}\n\n${taskPrompt}` : taskPrompt;
 
   const endpoint = activeProfile.endpoint || 'https://api.groq.com/openai/v1';
   const apiKey = activeProfile.apiKey;
@@ -519,6 +547,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           activeProfileId: config.activeProfileId || 'default',
           personas: config.personas || DEFAULT_PERSONAS,
           activePersonaId: config.activePersonaId || null,
+          coreVoiceDirective: config.coreVoiceDirective !== undefined ? config.coreVoiceDirective : null,
+          defaultCoreVoiceDirective: DEFAULT_CORE_VOICE_DIRECTIVE,
           templates: config.templates || DEFAULT_TEMPLATES,
           clipboardHistory: config.clipboardHistory || [],
           settings: { ...DEFAULT_CONFIG.settings, ...(config.settings || {}) }
@@ -549,6 +579,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       updateBadge('RUN', '#8b5cf6');
       executeTemplateRun(payload).then(res => {
         sendResponse(res);
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    // ── Core Voice Directive CRUD ──
+    case 'SAVE_CORE_VOICE': {
+      const { coreVoiceDirective } = payload || {};
+      getStorageData().then(async () => {
+        await setStorageData({ coreVoiceDirective: coreVoiceDirective || null });
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
+    case 'RESET_CORE_VOICE': {
+      getStorageData().then(async () => {
+        await setStorageData({ coreVoiceDirective: null });
+        sendResponse({ success: true });
       }).catch(err => {
         sendResponse({ success: false, error: err.message });
       });
