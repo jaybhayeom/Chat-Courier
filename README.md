@@ -2,26 +2,27 @@
 
 > **Move your AI conversations between models without losing the important context.**
 
-If you use more than one AI tool, you’ve probably run into this situation:
+<p align="center">
+  <img src="Screenshots/Second.jpg" alt="ChatCourier 7-Action Capsule Toolbar" width="800">
+</p>
 
-You spend 45 minutes designing an architecture, debugging code, researching an idea, or building a project with **ChatGPT** or **Claude**.
+## 📸 Visual Walkthrough
 
-Then suddenly:
+| 1. In-Page Ambient Button | 2. 7-Action Capsule Toolbar |
+|:---:|:---:|
+| <img src="Screenshots/first.jpg" alt="In-Page Ambient Button" width="400"> | <img src="Screenshots/Second.jpg" alt="7-Action Capsule Toolbar" width="400"> |
+| *Floating action orb rests in the corner on supported chat apps.* | *One-click icon toolbar for Handoff, Rewrite, Download, Preview & History.* |
 
-* You hit a rate limit.
-* You want a second opinion from **DeepSeek R1** or **Gemini**.
-* You want to move your current project into **Cursor**, **VS Code**, or your terminal.
-* You simply want to continue the same work with another model.
+| 3. Ambient Glow State Feedback | 4. Clarification-First Output |
+|:---:|:---:|
+| <img src="Screenshots/Third.jpg" alt="Ambient Glow Feedback" width="400"> | <img src="Screenshots/Fourth.jpg" alt="Clarification-First Output" width="400"> |
+| *Gentle breathing glow shows when prompt generation is running and ready.* | *Clarification-first prompt automatically copied to clipboard, ready to paste.* |
 
-Now you have to copy and paste 30+ messages manually.
-
-That gets frustrating quickly.
-
-AI conversations also contain a lot of unnecessary content, such as UI buttons, timestamps, copy links, greetings, and filler text. All of that makes it harder to move the useful context to another model.
-
-**ChatCourier helps you move the important parts of your conversation wherever you want to continue working.**
-
-Think of it as a **context shuttle for AI conversations** 🚀
+<p align="center">
+  <strong>5. Settings & Persona Hub</strong><br>
+  <img src="Screenshots/Fifth.jpg" alt="ChatCourier Settings & Configuration" width="800"><br>
+  <em>Customize OpenAI-compatible endpoints, custom personas, thinking depth, and prompt templates.</em>
+</p>
 
 ---
 
