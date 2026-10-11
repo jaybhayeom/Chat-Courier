@@ -312,6 +312,7 @@ class BaseScraper {
     if (host.includes('gemini.google.com')) return 'gemini';
     if (host.includes('perplexity.ai')) return 'perplexity';
     if (host.includes('deepseek.com')) return 'deepseek';
+    if (host.includes('meta.ai')) return 'meta';
     return 'generic';
   }
 

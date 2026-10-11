@@ -3,7 +3,7 @@
   "name": "ChatCourier - Seamless LLM Context Handoff Engine",
   "short_name": "ChatCourier",
   "version": "2.0.0",
-  "description": "Extracts, normalizes, and condenses multi-platform AI chat sessions (ChatGPT, Claude, Gemini, Perplexity, DeepSeek) into structured context handoff digests via any OpenAI-compatible API.",
+  "description": "Extracts, normalizes, and condenses multi-platform AI chat sessions (ChatGPT, Claude, Gemini, Perplexity, DeepSeek, Meta AI) into structured context handoff digests via any OpenAI-compatible API.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -31,7 +31,9 @@
         "https://claude.ai/*",
         "https://gemini.google.com/*",
         "https://www.perplexity.ai/*",
-        "https://chat.deepseek.com/*"
+        "https://chat.deepseek.com/*",
+        "https://www.meta.ai/*",
+        "https://meta.ai/*"
       ],
       "js": [
         "scrapers/BaseScraper.js",
@@ -40,6 +42,7 @@
         "scrapers/GeminiScraper.js",
         "scrapers/PerplexityScraper.js",
         "scrapers/DeepSeekScraper.js",
+        "scrapers/MetaAIScraper.js",
         "content.js"
       ],
       "css": [
@@ -66,6 +69,8 @@
     "https://gemini.google.com/*",
     "https://www.perplexity.ai/*",
     "https://chat.deepseek.com/*",
+    "https://www.meta.ai/*",
+    "https://meta.ai/*",
     "https://api.groq.com/*",
     "https://*/*"
   ],
@@ -82,7 +87,9 @@
         "https://claude.ai/*",
         "https://gemini.google.com/*",
         "https://www.perplexity.ai/*",
-        "https://chat.deepseek.com/*"
+        "https://chat.deepseek.com/*",
+        "https://www.meta.ai/*",
+        "https://meta.ai/*"
       ]
     }
   ]

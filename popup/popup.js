@@ -318,6 +318,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             'scrapers/GeminiScraper.js',
             'scrapers/PerplexityScraper.js',
             'scrapers/DeepSeekScraper.js',
+            'scrapers/MetaAIScraper.js',
             'content.js'
           ]
         }).catch(() => {});
@@ -388,6 +389,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (url.includes('deepseek.com')) {
       activePlatform = 'deepseek';
       detectedPlatformBadge.textContent = 'DeepSeek';
+    } else if (url.includes('meta.ai')) {
+      activePlatform = 'meta';
+      detectedPlatformBadge.textContent = 'Meta AI';
     } else {
       activePlatform = 'generic';
       detectedPlatformBadge.textContent = 'Web Chat';
@@ -695,6 +699,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         'gemini': 'Gemini',
         'perplexity': 'Perplexity',
         'deepseek': 'DeepSeek',
+        'meta': 'Meta AI',
         'rewriter': 'Rewrite',
         'thinking': 'Thinking',
         'generic': 'Web Chat'

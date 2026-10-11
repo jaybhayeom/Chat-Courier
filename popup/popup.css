@@ -693,6 +693,7 @@ body {
 .history-source-dot.gemini { background: #3b82f6; }
 .history-source-dot.perplexity { background: #06b6d4; }
 .history-source-dot.deepseek { background: #8b5cf6; }
+.history-source-dot.meta { background: #0081fb; }
 .history-source-dot.rewriter { background: #ec4899; }
 .history-source-dot.thinking { background: #f59e0b; }
 

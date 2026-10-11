@@ -260,6 +260,9 @@
         case 'deepseek':
           activeScraper = typeof DeepSeekScraper !== 'undefined' ? new DeepSeekScraper() : new BaseScraper('deepseek');
           break;
+        case 'meta':
+          activeScraper = typeof MetaAIScraper !== 'undefined' ? new MetaAIScraper() : new BaseScraper('meta');
+          break;
         default:
           activeScraper = new BaseScraper('generic');
           break;
@@ -277,6 +280,7 @@
       gemini: 'Gemini',
       perplexity: 'Perplexity',
       deepseek: 'DeepSeek',
+      meta: 'Meta AI',
       generic: 'Web Chat'
     };
     return labels[currentPlatform] || 'Web Chat';

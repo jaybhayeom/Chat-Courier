@@ -175,6 +175,12 @@ Captures responses along with linked **sources and search citations**.
 
 Preserves **DeepSeek R1 reasoning chains** in blockquotes.
 
+### Meta AI
+
+`meta.ai` / `www.meta.ai`
+
+Extracts multi-turn sessions, search citations, reasoning traces, and generated media annotations.
+
 ### Generic Fallback
 
 Using another web-based AI chat?
@@ -468,6 +474,7 @@ Go to a supported chat on:
 * Gemini
 * Perplexity
 * DeepSeek
+* Meta AI
 
 ### 5. Generate your handoff
 
@@ -517,7 +524,8 @@ Chat-Courier/
 │   ├── ClaudeScraper.js       # Anthropic Claude parser (supports artifacts)
 │   ├── GeminiScraper.js       # Google Gemini parser & composer locator
 │   ├── PerplexityScraper.js   # Perplexity search & citation parser
-│   └── DeepSeekScraper.js     # DeepSeek parser (supports R1 reasoning)
+│   ├── DeepSeekScraper.js     # DeepSeek parser (supports R1 reasoning)
+│   └── MetaAIScraper.js       # Meta AI parser & composer locator
 └── icons/                    # Extension icons (16px, 32px, 48px, 128px)
 ```
 
@@ -646,6 +654,6 @@ That’s the idea behind ChatCourier.
 
 > **Extract it. Clean it. Carry it. Continue.**
 
-**ChatGPT → Claude → Gemini → DeepSeek → Perplexity → Cursor → wherever you want to keep working.**
+**ChatGPT → Claude → Gemini → DeepSeek → Perplexity → Meta AI → Cursor → wherever you want to keep working.**
 
 Welcome to **ChatCourier** 👋
